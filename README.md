@@ -1,0 +1,1 @@
+This app connects students with local jobs.
