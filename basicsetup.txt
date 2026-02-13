@@ -1,0 +1,31 @@
+Initial project structure for capstone application.
+
+Frontend (Vite + React):
+- src/App.jsx: Main login UI with role-based demo authentication (admin/student/client)
+- src/login.jsx: Login form component
+- src/main.jsx: React entry point
+- src/providers/AuthProvider.jsx: Auth wrapper placeholder (Auth0 integration later)
+- App.css / index.css: Professional two-panel login layout and global styling
+- .env: Frontend environment variables
+
+Backend (Node):
+- server/index.js: Express server entry point
+- server/db.js: SQLite database connection setup
+- server/app.db: Local development database
+- server/.env: Backend environment variables
+
+Project setup:
+- vite.config.js: Vite configuration
+- package.json / package-lock.json: Dependencies for frontend and backend
+- public/assets: Static assets
+- auth0quickstart.txt: Auth0 reference notes
+- README.md: Project documentation
+
+This commit establishes:
+- Full frontend scaffold
+- Login UI
+- Temporary local authentication
+- Backend foundation
+- Environment configuration
+
+Auth0 integration and real authentication will be added in future commits.

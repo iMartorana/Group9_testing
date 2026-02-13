@@ -1,0 +1,222 @@
+/* Base reset */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root{
+  --bg1: #2b2b2b;
+  --bg2: #6a4a4a;
+  --card: #ffffff;
+  --text: #111827;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --shadow: 0 30px 80px rgba(0,0,0,.25);
+  --radius: 22px;
+  --btn: #8b5a63;
+  --btnHover: #7a4e56;
+}
+
+body{
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  color: var(--text);
+}
+
+/* Background like the screenshot */
+.page{
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+  background: radial-gradient(1200px 700px at 15% 10%, rgba(255,255,255,.14), transparent 60%),
+              linear-gradient(135deg, var(--bg1), var(--bg2));
+}
+
+.shell{
+  width: min(1050px, 100%);
+}
+
+/* Card */
+.authCard{
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.15);
+}
+
+/* Left panel */
+.left{
+  padding: 56px 56px;
+}
+
+.title{
+  font-size: 44px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+}
+
+.subtitle{
+  color: var(--muted);
+  margin-bottom: 26px;
+  font-size: 14px;
+}
+
+/* Fields */
+.field{
+  margin-bottom: 16px;
+}
+
+.field label{
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.field input{
+  width: 100%;
+  padding: 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  outline: none;
+  font-size: 14px;
+  background: #fafafa;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+
+.field input:focus{
+  background: #fff;
+  border-color: rgba(139,90,99,.55);
+  box-shadow: 0 0 0 4px rgba(139,90,99,.12);
+}
+
+/* Small row under fields */
+.row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 6px 0 18px;
+  gap: 12px;
+}
+
+.muted{ color: var(--muted); font-size: 12px; }
+
+.linkBtn{
+  border: 0;
+  background: transparent;
+  color: #374151;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.btn{
+  width: 100%;
+  border: 0;
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: var(--btn);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .08s ease, background .15s ease;
+  box-shadow: 0 14px 30px rgba(139,90,99,.22);
+}
+
+.btn:hover{ background: var(--btnHover); }
+.btn:active{ transform: translateY(1px); }
+
+.btnSecondary{
+  background: #6b7280;
+  box-shadow: none;
+}
+.btnSecondary:hover{ background: #5b6473; }
+
+/* Right panel with illustration-like gradient */
+.right{
+  position: relative;
+  padding: 0;
+  background:
+    radial-gradient(900px 520px at 30% 30%, rgba(255,255,255,.35), transparent 55%),
+    linear-gradient(180deg, rgba(143,90,96,.95), rgba(244,201,159,.95));
+}
+
+/* Optional: you can replace this with a real image later */
+.heroOverlay{
+  position: absolute;
+  inset: 22px;
+  border-radius: 18px;
+  background:
+    radial-gradient(520px 520px at 25% 45%, rgba(255,255,255,.45), transparent 55%),
+    linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.10));
+  border: 1px solid rgba(255,255,255,.35);
+  overflow: hidden;
+}
+
+/* Text on the right like the screenshot */
+.heroText{
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 22px;
+  color: rgba(255,255,255,.92);
+}
+
+.heroHeadline{
+  font-weight: 700;
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+.heroSub{
+  font-size: 12px;
+  color: rgba(255,255,255,.75);
+}
+
+/* Profile box */
+.profile{
+  margin-top: 14px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  max-height: 220px;
+  overflow: auto;
+  font-size: 12px;
+}
+
+.error{
+  margin-top: 12px;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.footerNote{
+  margin-top: 14px;
+  color: rgba(255,255,255,.7);
+  font-size: 12px;
+  text-align: center;
+}
+
+.pageLoading{
+  color: white;
+  text-align: center;
+}
+
+/* Responsive: stack on mobile */
+@media (max-width: 900px){
+  .authCard{
+    grid-template-columns: 1fr;
+  }
+  .right{
+    min-height: 220px;
+  }
+  .left{
+    padding: 36px 24px;
+  }
+  .title{
+    font-size: 36px;
+  }
+}

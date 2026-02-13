@@ -1,0 +1,16 @@
+# dependencies
+node_modules
+
+# env
+.env
+.env.*
+
+# build
+dist
+build
+
+# sqlite
+*.db
+
+# misc
+.DS_Store
