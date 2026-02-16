@@ -10,7 +10,7 @@ const DEMO_USERS = [
 export default function App() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [auth, setAuth] = useState(null); // { role, username }
+  const [auth, setAuth] = useState(null);
   const [error, setError] = useState("");
 
   const usersByUsername = useMemo(() => {
@@ -36,108 +36,77 @@ export default function App() {
 
   const handleLogout = () => {
     setAuth(null);
-    setError("");
   };
 
-  // Logged in view
+  // ✅ LOGGED-IN VIEW
   if (auth) {
     return (
-      <div className="page">
-        <div className="shell">
-          <div className="authCard">
-            <div className="left">
-              <h1 className="title">
-                {auth.role.charAt(0).toUpperCase() + auth.role.slice(1)} Portal
-              </h1>
-              <p className="subtitle">
-                Signed in as <b>{auth.username}</b>
-              </p>
+      <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
+        <div className="card p-4 shadow-sm text-center">
+          <h2>
+            {auth.role.charAt(0).toUpperCase() + auth.role.slice(1)} Portal
+          </h2>
+          <p>Signed in as <b>{auth.username}</b></p>
 
-              <div className="profile">
-                <pre>{JSON.stringify(auth, null, 2)}</pre>
-              </div>
-
-              <button className="btn btnSecondary" onClick={handleLogout}>
-                Logout
-              </button>
-            </div>
-
-            <div className="right">
-              <div className="heroOverlay">
-                <div className="heroText">
-                  <div className="heroHeadline">Demo Login</div>
-                  <div className="heroSub">
-                    Temporary local credentials (Auth0 later)
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <p className="footerNote">
-            Demo accounts: admin / student / client
-          </p>
+          <button className="btn btn-secondary" onClick={handleLogout}>
+            Logout
+          </button>
         </div>
       </div>
     );
   }
 
-  // Login form view
+  // ✅ LOGIN VIEW (Bootstrap form)
   return (
-    <div className="page">
-      <div className="shell">
-        <div className="authCard">
-          <div className="left">
-            <h1 className="title">Sign In</h1>
-            <p className="subtitle">Use a demo account to continue.</p>
+    <div className="min-vh-100 d-flex align-items-center bg-light">
+      <div className="container">
+        <div className="row justify-content-center">
+          <div className="col-12 col-md-6 col-lg-5">
+            <div className="card shadow-sm">
+              <div className="card-body p-4">
+                <h1 className="h3 mb-2">Sign In</h1>
+                <p className="text-muted mb-4">
+                  Use a demo account to continue.
+                </p>
 
-            <form onSubmit={handleLogin}>
-              <div className="field">
-                <label>Username</label>
-                <input
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="admin / student / client"
-                  autoComplete="username"
-                />
-              </div>
+                <form onSubmit={handleLogin}>
+                  <div className="mb-3">
+                    <label className="form-label">Username</label>
+                    <input
+                      className="form-control"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="admin / student / client"
+                    />
+                  </div>
 
-              <div className="field">
-                <label>Password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
-                  autoComplete="current-password"
-                />
-              </div>
+                  <div className="mb-3">
+                    <label className="form-label">Password</label>
+                    <input
+                      className="form-control"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter password"
+                    />
+                  </div>
 
-              {error && <p className="error">{error}</p>}
+                  {error && (
+                    <div className="alert alert-danger py-2">{error}</div>
+                  )}
 
-              <button className="btn" type="submit">
-                Sign In
-              </button>
-            </form>
+                  <button className="btn btn-primary w-100" type="submit">
+                    Sign In
+                  </button>
+                </form>
 
-        
-          </div>
-
-          <div className="right">
-            <div className="heroOverlay">
-              <div className="heroText">
-                <div className="heroHeadline">Welcome back</div>
-                <div className="heroSub">
-                  Role-based demo login (replace with Auth0 later)
+                <div className="small text-muted mt-3">
+                  Demo accounts: admin / student / client
                 </div>
               </div>
             </div>
           </div>
         </div>
-
-        <p className="footerNote">
-          This is temporary. We’ll swap this to Auth0 soon.
-        </p>
       </div>
     </div>
   );
