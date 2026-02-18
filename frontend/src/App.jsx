@@ -1,115 +1,86 @@
-import { useMemo, useState } from "react";
-import "./App.css";
+import { useAuth0 } from "@auth0/auth0-react";
+import Login from "./pages/login";
 
-const DEMO_USERS = [
-  { role: "admin", username: "admin", password: "Admin@123" },
-  { role: "student", username: "student", password: "Student@123" },
-  { role: "client", username: "client", password: "Client@123" },
-];
+function Dashboard() {
+  return (
+    <div className="container py-4">
+      <h1 className="h3">Welcome to the UWM TradeSkill App</h1>
+    </div>
+  );
+}
+
+function Navbar({ isAuthenticated, user, onLogin, onSignup, onLogout }) {
+  return (
+    <nav className="navbar navbar-expand-lg bg-light border-bottom">
+      <div className="container">
+        <span className="navbar-brand fw-bold">UWM Trade App</span>
+
+        <div className="ms-auto d-flex align-items-center gap-2">
+          {isAuthenticated ? (
+            <>
+              <span className="small text-muted">
+                {user?.email || user?.name}
+              </span>
+              <button className="btn btn-outline-secondary btn-sm" onClick={onLogout}>
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="btn btn-outline-primary btn-sm" onClick={onSignup}>
+                Sign up
+              </button>
+              <button className="btn btn-primary btn-sm" onClick={onLogin}>
+                Login
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </nav>
+  );
+}
+
 
 export default function App() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [auth, setAuth] = useState(null);
-  const [error, setError] = useState("");
+  const {
+    isLoading,
+    isAuthenticated,
+    user,
+    error,
+    loginWithRedirect,
+    logout: auth0Logout,
+  } = useAuth0();
 
-  const usersByUsername = useMemo(() => {
-    const map = new Map();
-    DEMO_USERS.forEach((u) => map.set(u.username, u));
-    return map;
-  }, []);
+  const onLogin = () => loginWithRedirect();
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    setError("");
+  const onSignup = () =>
+    loginWithRedirect({
+      authorizationParams: { screen_hint: "signup" },
+    });
 
-    const u = usersByUsername.get(username.trim());
-    if (!u || u.password !== password) {
-      setError("Invalid username or password.");
-      return;
-    }
+  const onLogout = () =>
+    auth0Logout({
+      logoutParams: { returnTo: window.location.origin },
+    });
 
-    setAuth({ role: u.role, username: u.username });
-    setUsername("");
-    setPassword("");
-  };
+  if (isLoading) return <p>Loading...</p>;
 
-  const handleLogout = () => {
-    setAuth(null);
-  };
-
-  // LOGGED-IN VIEW
-  if (auth) {
-    return (
-      <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
-        <div className="card p-4 shadow-sm text-center">
-          <h2>
-            {auth.role.charAt(0).toUpperCase() + auth.role.slice(1)} Portal
-          </h2>
-          <p>
-            Signed in as <b>{auth.username}</b>
-          </p>
-
-          <button className="btn btn-secondary" onClick={handleLogout}>
-            Logout
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // LOGIN VIEW (Bootstrap form)
   return (
-    <div className="min-vh-100 d-flex align-items-center bg-light">
-      <div className="container">
-        <div className="row justify-content-center">
-          <div className="col-12 col-md-6 col-lg-5">
-            <div className="card shadow-sm">
-              <div className="card-body p-4">
-                <h1 className="h3 mb-2">Sign In</h1>
-                <p className="text-muted mb-4">Use a demo account to continue.</p>
+    <>
+      <Navbar
+        isAuthenticated={isAuthenticated}
+        user={user}
+        onLogin={onLogin}
+        onSignup={onSignup}
+        onLogout={onLogout}
+      />
 
-                <form onSubmit={handleLogin}>
-                  <div className="mb-3">
-                    <label className="form-label">Username</label>
-                    <input
-                      className="form-control"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="admin / student / client"
-                      autoComplete="username"
-                    />
-                  </div>
+      <div className="container py-3">
+        {error && <div className="alert alert-danger">{error.message}</div>}
 
-                  <div className="mb-3">
-                    <label className="form-label">Password</label>
-                    <input
-                      className="form-control"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter password"
-                      autoComplete="current-password"
-                    />
-                  </div>
-
-                  {error && (
-                    <div className="alert alert-danger py-2">{error}</div>
-                  )}
-
-                  <button className="btn btn-primary w-100" type="submit">
-                    Sign In
-                  </button>
-                </form>
-
-                <div className="small text-muted mt-3">
-                  Demo accounts: admin / student / client
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        {!isAuthenticated ? <Login /> : <Dashboard />}
       </div>
-    </div>
+    </>
   );
 }
