@@ -34,15 +34,15 @@ export default function App() {
 
       <pre>{JSON.stringify(user, null, 2)}</pre>
 
-      <button onClick={logout}>Logout</button>
+      <button className="btn" onClick={logout}>Logout</button>
     </>
   ) : (
     <>
       {error && <p>Error: {error.message}</p>}
 
-      <button onClick={signup}>Signup</button>
+      <button className="btn" onClick={signup}>Signup</button>
 
-      <button onClick={login}>Login</button>
+      <button className="btn" onClick={login}>Login</button>
     </>
   );
 }
