@@ -2,16 +2,16 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root{
-  --bg1: #2b2b2b;
-  --bg2: #6a4a4a;
+  --bg1: #ffffff;
+  --bg2: #a6a6a6;
   --card: #ffffff;
   --text: #111827;
   --muted: #6b7280;
   --border: #e5e7eb;
   --shadow: 0 30px 80px rgba(0,0,0,.25);
   --radius: 22px;
-  --btn: #8b5a63;
-  --btnHover: #7a4e56;
+  --btn: #f7b819;
+  --btnHover: #ffd15b;
 }
 
 body{
@@ -43,6 +43,15 @@ body{
   box-shadow: var(--shadow);
   overflow: hidden;
   border: 1px solid rgba(255,255,255,.15);
+}
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #333;
+  padding: 1rem 2rem;
+  color: white;
+  min-width: 60px;
 }
 
 /* Left panel */
@@ -118,7 +127,7 @@ body{
   border-radius: 14px;
   padding: 14px 16px;
   background: var(--btn);
-  color: #fff;
+  color: #000000;
   font-weight: 600;
   cursor: pointer;
   transition: transform .08s ease, background .15s ease;
@@ -126,6 +135,7 @@ body{
 }
 
 .btn:hover{ background: var(--btnHover); }
+
 .btn:active{ transform: translateY(1px); }
 
 .btnSecondary{
