@@ -1,4 +1,4 @@
-import { useAuth0 } from "@auth0/auth0-react";
+import { useMemo, useState } from "react";
 import "./App.css";
 
 const DEMO_USERS = [
@@ -46,7 +46,9 @@ export default function App() {
           <h2>
             {auth.role.charAt(0).toUpperCase() + auth.role.slice(1)} Portal
           </h2>
-          <p>Signed in as <b>{auth.username}</b></p>
+          <p>
+            Signed in as <b>{auth.username}</b>
+          </p>
 
           <button className="btn btn-secondary" onClick={handleLogout}>
             Logout
@@ -65,9 +67,7 @@ export default function App() {
             <div className="card shadow-sm">
               <div className="card-body p-4">
                 <h1 className="h3 mb-2">Sign In</h1>
-                <p className="text-muted mb-4">
-                  Use a demo account to continue.
-                </p>
+                <p className="text-muted mb-4">Use a demo account to continue.</p>
 
                 <form onSubmit={handleLogin}>
                   <div className="mb-3">
@@ -77,6 +77,7 @@ export default function App() {
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       placeholder="admin / student / client"
+                      autoComplete="username"
                     />
                   </div>
 
@@ -88,6 +89,7 @@ export default function App() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter password"
+                      autoComplete="current-password"
                     />
                   </div>
 
@@ -108,7 +110,6 @@ export default function App() {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
-
