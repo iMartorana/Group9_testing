@@ -38,7 +38,7 @@ export default function App() {
     setAuth(null);
   };
 
-  // ✅ LOGGED-IN VIEW
+  // LOGGED-IN VIEW
   if (auth) {
     return (
       <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
@@ -56,7 +56,7 @@ export default function App() {
     );
   }
 
-  // ✅ LOGIN VIEW (Bootstrap form)
+  // LOGIN VIEW (Bootstrap form)
   return (
     <div className="min-vh-100 d-flex align-items-center bg-light">
       <div className="container">
