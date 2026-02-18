@@ -7,64 +7,106 @@ const DEMO_USERS = [
   { role: "client", username: "client", password: "Client@123" },
 ];
 
-function Navbar({ isAuthenticated, user, onLogin, onSignup, onLogout }) {
-  return (
-    <nav className="navbar">
-      <span style={{ fontWeight: 700, fontSize: "18px" }}>UWM Skill Trade</span>
-      <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-        {isAuthenticated ? (
-          <>
-            <span style={{ fontSize: "14px" }}>{user?.email}</span>
-            <button className="btn" onClick={onLogout}>Logout</button>
-          </>
-        ) : (
-          <>
-            <button className="btn" onClick={onSignup}>Signup</button>
-
-            <button className="btn" onClick={onLogin}>Login</button>
-          </>
-        )}
-      </div>
-    </nav>
-  );
-}
-
 export default function App() {
-  const {
-    isLoading, // Loading state, the SDK needs to reach Auth0 on load
-    isAuthenticated,
-    error,
-    loginWithRedirect: login, // Starts the login flow
-    logout: auth0Logout, // Starts the logout flow
-    user, // User profile
-  } = useAuth0();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [auth, setAuth] = useState(null);
+  const [error, setError] = useState("");
 
-  const signup = () => login({ authorizationParams: { screen_hint: "signup" } });
+  const usersByUsername = useMemo(() => {
+    const map = new Map();
+    DEMO_USERS.forEach((u) => map.set(u.username, u));
+    return map;
+  }, []);
 
-  const logout = () => auth0Logout({ logoutParams: { returnTo: window.location.origin } });
+  const handleLogin = (e) => {
+    e.preventDefault();
+    setError("");
 
+    const u = usersByUsername.get(username.trim());
+    if (!u || u.password !== password) {
+      setError("Invalid username or password.");
+      return;
+    }
+
+    setAuth({ role: u.role, username: u.username });
+    setUsername("");
+    setPassword("");
+  };
+
+  const handleLogout = () => {
+    setAuth(null);
+  };
+
+  // LOGGED-IN VIEW
+  if (auth) {
+    return (
+      <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
+        <div className="card p-4 shadow-sm text-center">
+          <h2>
+            {auth.role.charAt(0).toUpperCase() + auth.role.slice(1)} Portal
+          </h2>
+          <p>Signed in as <b>{auth.username}</b></p>
+
+          <button className="btn btn-secondary" onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // LOGIN VIEW (Bootstrap form)
   return (
-    <>
-      <Navbar
-        isAuthenticated={isAuthenticated}
-        user={user}
-        onLogin={login}
-        onSignup={signup}
-        onLogout={logout}
-      />
+    <div className="min-vh-100 d-flex align-items-center bg-light">
+      <div className="container">
+        <div className="row justify-content-center">
+          <div className="col-12 col-md-6 col-lg-5">
+            <div className="card shadow-sm">
+              <div className="card-body p-4">
+                <h1 className="h3 mb-2">Sign In</h1>
+                <p className="text-muted mb-4">
+                  Use a demo account to continue.
+                </p>
 
-      <div className="page">
-        {isAuthenticated ? (
-          <div className="shell">
-            <h1>User Profile</h1>
-            <pre className="profile">{JSON.stringify(user, null, 2)}</pre>
+                <form onSubmit={handleLogin}>
+                  <div className="mb-3">
+                    <label className="form-label">Username</label>
+                    <input
+                      className="form-control"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="admin / student / client"
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Password</label>
+                    <input
+                      className="form-control"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter password"
+                    />
+                  </div>
+
+                  {error && (
+                    <div className="alert alert-danger py-2">{error}</div>
+                  )}
+
+                  <button className="btn btn-primary w-100" type="submit">
+                    Sign In
+                  </button>
+                </form>
+
+                <div className="small text-muted mt-3">
+                  Demo accounts: admin / student / client
+                </div>
+              </div>
+            </div>
           </div>
-        ) : (
-          <div className="shell">
-            {error && <p className="error">Error: {error.message}</p>}
-            <p>Please log in or sign up to continue.</p>
-          </div>
-        )}
+        </div>
       </div>
     </>
   );
