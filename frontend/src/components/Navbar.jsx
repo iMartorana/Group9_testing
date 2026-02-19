@@ -9,32 +9,23 @@ export default function Navbar() {
     });
 
   return (
-    <nav className="navbar navbar-expand-lg bg-light border-bottom">
-      <div className="container">
-
-        <span className="navbar-brand fw-bold btn">
-          UWM TradeSkill App
-        </span>
+    <nav className="navbar navbar-expand-lg border-bottom">
+      <div className="container" style={{ display: "flex", flexDirection: "row", gap: "10px" }}>
+        
+        <span className="navbar-brand btn btn-primary">UWM TradeSkill App</span>
 
         <div className="d-flex gap-2">
-          <button className="btn">Home</button>
-          <button className="btn">Messages</button>
-          <button className="btn">Payments</button>
+          <button className="btn btn-primary">Home</button>
+          <button className="btn btn-primary">Messages</button>
+          <button className="btn btn-primary">Payments</button>
         </div>
 
         <div className="ms-auto d-flex align-items-center gap-2">
-          <span className="small text-muted">
+          <span className="small text-black fw-bold">
             {user?.email || user?.name}
           </span>
-
-          <button
-            className="btn btn-outline-secondary btn-sm"
-            onClick={handleLogout}
-          >
-            Logout
-          </button>
+          <button className="btn btn-primary btn-sm" onClick={handleLogout}>Logout</button>
         </div>
-
       </div>
     </nav>
   );
