@@ -2,8 +2,8 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root{
-  --bg1: #2b2b2b;
-  --bg2: #6a4a4a;
+  --bg1: #ffffff;
+  --bg2: #a6a6a6;
   --card: #ffffff;
   --nav: #b6b6b6;
   --text: #000000;
@@ -11,8 +11,8 @@
   --border: #e5e7eb;
   --shadow: 0 30px 80px rgba(0,0,0,.25);
   --radius: 22px;
-  --btn: #8b5a63;
-  --btnHover: #7a4e56;
+  --btn: #f7b819;
+  --btnHover: #ffd15b;
 }
 
 body{
@@ -134,6 +134,7 @@ body{
 }
 
 .btn:hover{ background: var(--btnHover); }
+
 .btn:active{ transform: translateY(1px); }
 
 .btn-primary{

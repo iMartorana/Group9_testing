@@ -1,49 +1,21 @@
 import { useAuth0 } from "@auth0/auth0-react";
-import "./App.css";
-
-const DEMO_USERS = [
-  { role: "admin", username: "admin", password: "Admin@123" },
-  { role: "student", username: "student", password: "Student@123" },
-  { role: "client", username: "client", password: "Client@123" },
-];
+import Login from "./pages/Login";
+import AdminDashboard from "./pages/admin/AdminDashboard"; 
 
 export default function App() {
-  const {
-    isLoading, // Loading state, the SDK needs to reach Auth0 on load
-    isAuthenticated,
-    error,
-    loginWithRedirect: login, // Starts the login flow
-    logout: auth0Logout, // Starts the logout flow
-    user, // User profile
-  } = useAuth0();
+  const { isLoading, isAuthenticated, error } = useAuth0();
 
-  const signup = () =>
-    login({ authorizationParams: { screen_hint: "signup" } });
+  if (isLoading) return <p>Loading...</p>;
 
-  const logout = () =>
-    auth0Logout({ logoutParams: { returnTo: window.location.origin } });
-
-
-
-  if (isLoading) return "Loading...";
-  return isAuthenticated ? (
+  return (
     <>
-      <p>Logged in as {user.email}</p>
+      {error && (
+        <div className="container py-3">
+          <div className="alert alert-danger">{error.message}</div>
+        </div>
+      )}
 
-      <h1>User Profile</h1>
-
-      <pre>{JSON.stringify(user, null, 2)}</pre>
-
-      <button onClick={logout}>Logout</button>
-    </>
-  ) : (
-    <>
-      {error && <p>Error: {error.message}</p>}
-
-      <button onClick={signup}>Signup</button>
-
-      <button onClick={login}>Login</button>
+      {!isAuthenticated ? <Login /> : <AdminDashboard />}
     </>
   );
 }
-
