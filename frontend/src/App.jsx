@@ -1,21 +1,32 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
+
+import Navbar from "./components/Navbar";
 import Login from "./pages/Login";
-import AdminDashboard from "./pages/admin/AdminDashboard.jsx"; 
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import Profile from "./pages/Profile";
 
 export default function App() {
-  const { isLoading, isAuthenticated, error } = useAuth0();
+  const { isLoading, isAuthenticated } = useAuth0();
 
   if (isLoading) return <p>Loading...</p>;
 
   return (
-    <>
-      {error && (
-        <div className="container py-3">
-          <div className="alert alert-danger">{error.message}</div>
-        </div>
-      )}
+    <BrowserRouter>
+      {!isAuthenticated ? (
+        <Login />
+      ) : (
+        <>
+          {/* Navbar ALWAYS visible when logged in */}
+          <Navbar />
 
-      {!isAuthenticated ? <Login /> : <AdminDashboard />}
-    </>
+          {/* Page content changes below */}
+          <Routes>
+            <Route path="/" element={<AdminDashboard />} />
+            <Route path="/profile" element={<Profile />} />
+          </Routes>
+        </>
+      )}
+    </BrowserRouter>
   );
 }

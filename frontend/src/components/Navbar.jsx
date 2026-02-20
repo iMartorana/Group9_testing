@@ -1,4 +1,7 @@
 import { useAuth0 } from "@auth0/auth0-react";
+import { Link } from "react-router-dom";
+import Button from "react-bootstrap/Button";
+import ButtonGroup from 'react-bootstrap/ButtonGroup';
 
 export default function Navbar() {
   const { user, logout } = useAuth0();
@@ -17,15 +20,19 @@ export default function Navbar() {
         </span>
 
         <div className="d-flex gap-2 ms-3">
-          <button className="btn">Home</button>
-          <button className="btn">Messages</button>
-          <button className="btn">Payments</button>
+            <ButtonGroup className="mb-2">
+                <Button className="btn" as={Link} to="/AdminDashboard">Home</Button>
+                <Button className="btn">Messages</Button>
+                <Button className="btn">Payments</Button>
+            </ButtonGroup>
         </div>
 
         <div className="ms-auto d-flex align-items-center gap-2">
           <span className="small text-muted">
             {user?.email || user?.name}
           </span>
+
+          <Button className="btn btn-sm" as={Link} to="/Profile">Profile</Button>
 
           <button
             className="btn btn-outline-secondary btn-sm"
