@@ -1,6 +1,6 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import Login from "./pages/Login";
-import AdminDashboard from "./pages/admin/AdminDashboard"; 
+import AdminDashboard from "./pages/admin/AdminDashboard.jsx"; 
 
 export default function App() {
   const { isLoading, isAuthenticated, error } = useAuth0();

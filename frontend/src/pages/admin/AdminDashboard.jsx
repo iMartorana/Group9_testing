@@ -5,7 +5,7 @@ export default function AdminDashboard() {
     <>
       <Navbar />
 
-      <div className="container py-4">
+      <div className="container py-4 ms-3">
         <h1 className="display-5 text-danger fw-bold">
           ADMIN DASHBOARD
         </h1>
