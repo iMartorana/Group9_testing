@@ -9,7 +9,8 @@ import Profile from "./pages/Profile";
 export default function App() {
   const { isLoading, isAuthenticated } = useAuth0();
 
-  if (isLoading) return <p>Loading...</p>;
+export default function App() {
+  const { error, isAuthenticated } = useAuth0();
 
   return (
     <BrowserRouter>
