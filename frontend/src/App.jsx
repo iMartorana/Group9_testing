@@ -6,6 +6,8 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import PostLoginRedirect from "./pages/PostLoginRedirect";
+import Navbar from "./components/Navbar";   
+import Profile from "./pages/Profile";
 
 function RequireAuth({ children }) {
   const { isAuthenticated, isLoading } = useAuth0();
@@ -23,25 +25,25 @@ export default function App() {
           <div className="alert alert-danger">{error.message}</div>
         </div>
       )}
+      
 
-      <Routes>
-  <Route
-    path="/"
-    element={isAuthenticated? <Navigate to="/post-login" replace /> : <Login />}
-  />
+    <Routes>
+      <Route
+        path="/"
+        element={isAuthenticated? <Navigate to="/post-login" replace /> : <Login />}
+      />
 
-  <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
-  <Route path="/client" element={<Navigate to="/client/dashboard" replace />} />
+      <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
+      <Route path="/client" element={<Navigate to="/client/dashboard" replace />} />
 
-  <Route
-    path="/post-login"
-    element={
-      <RequireAuth>
-        <PostLoginRedirect />
-      </RequireAuth>
-    }
-  />
-
+      <Route
+        path="/post-login"
+        element={
+          <RequireAuth>
+            <PostLoginRedirect />
+          </RequireAuth>
+        }
+      />
         <Route
           path="/student/dashboard"
           element={
@@ -65,6 +67,15 @@ export default function App() {
           element={
             <RequireAuth>
               <AdminDashboard />
+            </RequireAuth>
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            <RequireAuth>
+              <Profile />
             </RequireAuth>
           }
         />
