@@ -25,7 +25,7 @@ export default function ProfilePhotoSection() {
   };
 
   const onSave = async () => {
-    // Phase 1: just show that you “captured” it
+    // just show that user “captured” it
     console.log("Selected file:", file);
     alert("Selected photo (preview only for now). Next step is uploading to the server.");
   };
@@ -52,6 +52,28 @@ export default function ProfilePhotoSection() {
             </Form.Group>
           </div>
         </div>
+
+        <Form className="mb-3">
+            <Form.Group className="mb-2">
+            <Form.Label>First Name</Form.Label>
+            <Form.Control type="text" placeholder="First name" />
+        </Form.Group>
+
+        <Form.Group className="mb-2">
+            <Form.Label>Last Name</Form.Label>
+            <Form.Control type="text" placeholder="Last name" />
+        </Form.Group>
+
+        <Form.Group className="mb-2">
+            <Form.Label>Email</Form.Label>
+            <Form.Control type="email" placeholder="Email" />
+        </Form.Group>
+
+        <Form.Group className="mb-2">
+            <Form.Label>Phone</Form.Label>
+            <Form.Control type="text" placeholder="Phone number" />
+        </Form.Group>
+        </Form>
 
         <Button onClick={onSave} disabled={!file}>
           Save Photo
