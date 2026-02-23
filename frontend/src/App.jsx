@@ -6,8 +6,8 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import PostLoginRedirect from "./pages/PostLoginRedirect";
-import Navbar from "./components/Navbar";   
 import Profile from "./pages/Profile";
+import Jobs from "./pages/Jobs";
 
 function RequireAuth({ children }) {
   const { isAuthenticated, isLoading } = useAuth0();
@@ -67,6 +67,15 @@ export default function App() {
           element={
             <RequireAuth>
               <AdminDashboard />
+            </RequireAuth>
+          }
+        />
+
+        <Route
+          path="/jobs"
+          element={
+            <RequireAuth>
+              <Jobs />
             </RequireAuth>
           }
         />
