@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Card, Form, Button, Image, Alert } from "react-bootstrap";
+import Navbar from "../components/Navbar";
 
+
+<Navbar/>
 export default function ProfilePhotoSection() {
   const [previewUrl, setPreviewUrl] = useState("");
   const [file, setFile] = useState(null);
