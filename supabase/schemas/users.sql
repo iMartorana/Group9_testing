@@ -4,8 +4,8 @@ create table "users" (
   "role" text default 'customer',
   "first_name" text,
   "last_name" text,
-  "phone" integer,
+  "phone" text,
   "bio" text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
+  "created_at" timestamptz default now(),
+  "updated_at" timestamptz default now()
 );

@@ -22,7 +22,7 @@ create table "users" (
   "role" text default 'customer',
   "first_name" text,
   "last_name" text,
-  "phone" integer,
+  "phone" text,
   "bio" text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -31,36 +31,5 @@ create table "users" (
 
 //Get user by email. For initial checks and retrieval from login
 //Return user set. Should be one element
-export function get_user_by_email(email) {
-    const {data, error} = supabase.rpc('get_user_by_email', {emailparam : email});
-    if(error == null){
-        return data;
-    } else {
-        console.log(error);
-        return error;
-    }
-} 
-
-//Get user by id
-//Return user set. Should be one element
-export function get_user_by_id(id) {
-    const {data, error} = supabase.rpc('get_user_by_id', {idparam : id});
-    if(error == null){
-        return data;
-    } else {
-        console.log(error);
-        return error;
-    }
-}
-
-//Add new user by providing email and role
-//Returns new id
-export function add_user(email, role) {
-    const {data, error} = supabase.rpc('add_user', {emailparam : email, roleparam : role});
-    if(error == null){
-        return data;
-    } else {
-        console.log(error);
-        return error;
-    }
-}
+//Something was going wrong with the functions, so I deleted them for now.
+//Best option is likely just to use javascript commands and writing functions here
