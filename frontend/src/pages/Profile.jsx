@@ -5,7 +5,7 @@ const MOCK_STUDENTS = [
   {
     id: 1,
     name: "Logan Phillips",
-    email: "",
+
     skills: ["React", "Node.js"],
     salary: 25,
     experience: 2,
@@ -14,7 +14,6 @@ const MOCK_STUDENTS = [
   {
     id: 2,
     name: "Bob Smith",
-    email: "",
     skills: ["Python", "Excel"],
     salary: 20,
     experience: 1,
@@ -23,7 +22,7 @@ const MOCK_STUDENTS = [
   {
     id: 3,
     name: "Danny Brown",
-    email: "",
+    
     skills: ["Photoshop", "Illustrator"],
     salary: 30,
     experience: 3,
@@ -32,7 +31,7 @@ const MOCK_STUDENTS = [
   {
     id: 4,
     name: "Mary Johnson",
-    email: "",
+    
     skills: ["Math", "Physics"],
     salary: 15,
     experience: 1,
