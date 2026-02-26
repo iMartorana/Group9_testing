@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const MOCK_STUDENTS = [
   { id: 1, name: "Logan Phillips", skills: ["React", "Node.js"], salary: 25, experience: 2, availability: "Weekdays" },
