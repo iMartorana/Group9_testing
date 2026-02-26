@@ -1,5 +1,4 @@
-import supabase from "../../../supabaseconfig.js"
-/*
+import supabase from "../../../supabaseconfig.js";/*
 File to contain wrapper functions that can call supabase functions. 
 Supabase configured in supabaseconfig.js
 Supabase installed on system using scoop in command line
@@ -33,3 +32,48 @@ create table "users" (
 //Return user set. Should be one element
 //Something was going wrong with the functions, so I deleted them for now.
 //Best option is likely just to use javascript commands and writing functions here
+
+
+// -------------------- REVIEWS --------------------
+
+// Get reviews for a student (latest first)
+export async function getReviewsForStudent(studentEmail) {
+  return await supabase
+    .from("reviews")
+    .select("id, student_email, client_email, rating, review_text, created_at")
+    .eq("student_email", studentEmail)
+    .order("created_at", { ascending: false });
+}
+
+// Get average rating + count for a student
+export async function getReviewSummary(studentEmail) {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("rating")
+    .eq("student_email", studentEmail);
+
+  if (error) return { data: null, error };
+
+  const count = data.length;
+  const avg =
+    count === 0 ? 0 : data.reduce((sum, r) => sum + r.rating, 0) / count;
+
+  return { data: { avg, count }, error: null };
+}
+
+// Create (or update) a review (uses unique index for upsert)
+export async function upsertReview({ studentEmail, clientEmail, rating, reviewText }) {
+  return await supabase
+    .from("reviews")
+    .upsert(
+      {
+        student_email: studentEmail,
+        client_email: clientEmail,
+        rating,
+        review_text: reviewText,
+      },
+      { onConflict: "student_email,client_email" }
+    )
+    .select()
+    .single();
+}
