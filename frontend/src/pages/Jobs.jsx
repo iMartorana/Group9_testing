@@ -38,7 +38,7 @@ export default function Jobs() {
        <Navbar />
 
       <div className="container py-4">
-        {user.role === "student" ? <JobListings /> : <SkillListings />}
+        {role === "student" ? <JobListings /> : <SkillListings />}
       </div>
     </>
   );
