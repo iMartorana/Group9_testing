@@ -8,6 +8,7 @@ import ClientDashboard from "./pages/client/ClientDashboard";
 import PostLoginRedirect from "./pages/PostLoginRedirect";
 import Profile from "./pages/Profile";
 import Jobs from "./pages/Jobs";
+import Payment from "./pages/Payment";
 import Reviews from "./pages/Reviews";
 import { useLocation } from "react-router-dom";
 
@@ -99,6 +100,15 @@ export default function App() {
         />
 
         <Route
+          path="/payment"
+          element={
+            <RequireAuth>
+              <Payment />
+            </RequireAuth>
+          }
+        />
+
+        <Route
           path="/reviews"
           element={
             <RequireAuth>
@@ -106,6 +116,8 @@ export default function App() {
             </RequireAuth>
           }
         />
+
+        
 
         {/* Catch-all MUST be last */}
         <Route

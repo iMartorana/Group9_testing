@@ -24,7 +24,7 @@ export default function Navbar() {
                 <Button className="btn" as={Link} to="/AdminDashboard">Home</Button>
                 <Button className="btn" as={Link} to="/Jobs">Jobs</Button>
                 <Button className="btn">Messages</Button>
-                <Button className="btn">Payments</Button>
+                <Button className="btn" as={Link} to="/Payment">Payment</Button>
             </ButtonGroup>
         </div>
 
