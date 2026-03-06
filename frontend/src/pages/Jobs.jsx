@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
+import Navbar from "../components/Navbar";
 import JobListings from "../components/JobListings";
 import SkillListings from "../components/SkillListings";
-import Navbar from "../components/Navbar";
+import supabase from "../../../supabaseconfig.js";
 
 export default function Jobs() {
   const { user } = useAuth0();
@@ -34,10 +35,11 @@ export default function Jobs() {
 
   return (
     <>
-    <Navbar/>
-    <div className="container py-4">
-      {user.role === "student" ? <JobListings /> : <SkillListings />}
-    </div>
+       <Navbar />
+
+      <div className="container py-4">
+        {user.role === "student" ? <JobListings /> : <SkillListings />}
+      </div>
     </>
   );
 }

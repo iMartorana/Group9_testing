@@ -8,11 +8,20 @@ import ClientDashboard from "./pages/client/ClientDashboard";
 import PostLoginRedirect from "./pages/PostLoginRedirect";
 import Profile from "./pages/Profile";
 import Jobs from "./pages/Jobs";
+import Reviews from "./pages/Reviews";
+import { useLocation } from "react-router-dom";
 
 function RequireAuth({ children }) {
   const { isAuthenticated, isLoading } = useAuth0();
+  const location = useLocation();
+
   if (isLoading) return <div className="container py-4">Loading...</div>;
-  return isAuthenticated? children : <Navigate to="/" replace />;
+
+  return isAuthenticated ? (
+    children
+  ) : (
+    <Navigate to="/" replace state={{ returnTo: location.pathname + location.search }} />
+  );
 }
 
 export default function App() {
@@ -25,25 +34,25 @@ export default function App() {
           <div className="alert alert-danger">{error.message}</div>
         </div>
       )}
-      
 
-    <Routes>
-      <Route
-        path="/"
-        element={isAuthenticated? <Navigate to="/post-login" replace /> : <Login />}
-      />
+      <Routes>
+        <Route
+          path="/"
+          element={isAuthenticated ? <Navigate to="/post-login" replace /> : <Login />}
+        />
 
-      <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
-      <Route path="/client" element={<Navigate to="/client/dashboard" replace />} />
+        <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
+        <Route path="/client" element={<Navigate to="/client/dashboard" replace />} />
 
-      <Route
-        path="/post-login"
-        element={
-          <RequireAuth>
-            <PostLoginRedirect />
-          </RequireAuth>
-        }
-      />
+        <Route
+          path="/post-login"
+          element={
+            <RequireAuth>
+              <PostLoginRedirect />
+            </RequireAuth>
+          }
+        />
+
         <Route
           path="/student/dashboard"
           element={
@@ -89,10 +98,21 @@ export default function App() {
           }
         />
 
+        <Route
+          path="/reviews"
+          element={
+            <RequireAuth>
+              <Reviews />
+            </RequireAuth>
+          }
+        />
+
         {/* Catch-all MUST be last */}
         <Route
           path="*"
-          element={isAuthenticated ? <Navigate to="/post-login" replace /> : <Navigate to="/" replace />}
+          element={
+            isAuthenticated ? <Navigate to="/post-login" replace /> : <Navigate to="/" replace />
+          }
         />
       </Routes>
     </>

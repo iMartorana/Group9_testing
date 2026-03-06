@@ -9,7 +9,7 @@ createRoot(document.getElementById("root")).render(
     domain="dev-6qyiyqksmtwrjpbi.us.auth0.com"
     clientId="4HDfA91gN7LlZJDZ6vTyt9CfEbuUZUWH"
     authorizationParams={{
-      redirect_uri: window.location.origin, 
+      redirect_uri: window.location.origin,
     }}
   >
     <BrowserRouter>

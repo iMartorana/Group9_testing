@@ -1,5 +1,4 @@
-import supabase from "../../../supabaseconfig.js"
-/*
+import supabase from "../../../supabaseconfig.js";/*
 File to contain wrapper functions that can call supabase functions. 
 Supabase configured in supabaseconfig.js
 Supabase installed on system using scoop in command line
@@ -22,7 +21,7 @@ create table "users" (
   "role" text default 'customer',
   "first_name" text,
   "last_name" text,
-  "phone" integer,
+  "phone" text,
   "bio" text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -31,36 +30,50 @@ create table "users" (
 
 //Get user by email. For initial checks and retrieval from login
 //Return user set. Should be one element
-export function get_user_by_email(email) {
-    const {data, error} = supabase.rpc('get_user_by_email', {emailparam : email});
-    if(error == null){
-        return data;
-    } else {
-        console.log(error);
-        return error;
-    }
-} 
+//Something was going wrong with the functions, so I deleted them for now.
+//Best option is likely just to use javascript commands and writing functions here
 
-//Get user by id
-//Return user set. Should be one element
-export function get_user_by_id(id) {
-    const {data, error} = supabase.rpc('get_user_by_id', {idparam : id});
-    if(error == null){
-        return data;
-    } else {
-        console.log(error);
-        return error;
-    }
+
+// -------------------- REVIEWS --------------------
+
+// Get reviews for a student (latest first)
+export async function getReviewsForStudent(studentEmail) {
+  return await supabase
+    .from("reviews")
+    .select("id, student_email, client_email, rating, review_text, created_at")
+    .eq("student_email", studentEmail)
+    .order("created_at", { ascending: false });
 }
 
-//Add new user by providing email and role
-//Returns new id
-export function add_user(email, role) {
-    const {data, error} = supabase.rpc('add_user', {emailparam : email, roleparam : role});
-    if(error == null){
-        return data;
-    } else {
-        console.log(error);
-        return error;
-    }
+// Get average rating + count for a student
+export async function getReviewSummary(studentEmail) {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select("rating")
+    .eq("student_email", studentEmail);
+
+  if (error) return { data: null, error };
+
+  const count = data.length;
+  const avg =
+    count === 0 ? 0 : data.reduce((sum, r) => sum + r.rating, 0) / count;
+
+  return { data: { avg, count }, error: null };
+}
+
+// Create (or update) a review (uses unique index for upsert)
+export async function upsertReview({ studentEmail, clientEmail, rating, reviewText }) {
+  return await supabase
+    .from("reviews")
+    .upsert(
+      {
+        student_email: studentEmail,
+        client_email: clientEmail,
+        rating,
+        review_text: reviewText,
+      },
+      { onConflict: "student_email,client_email" }
+    )
+    .select()
+    .single();
 }
