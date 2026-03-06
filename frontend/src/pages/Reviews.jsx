@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { Container, Card } from "react-bootstrap";
 import Navbar from "../components/Navbar";
-import ReviewForm from "../components/ReviewForm";
-import ReviewList from "../components/ReviewList";
-import RatingStars from "../components/RatingStars";
+import ReviewForm from "../components/Reviews/ReviewForm";
+import ReviewList from "../components/Reviews/ReviewList";
+import RatingStars from "../components/Reviews/RatingStars";
 import { getReviewsForStudent, getReviewSummary } from "../api/supabaseapi";
 
 export default function Reviews() {

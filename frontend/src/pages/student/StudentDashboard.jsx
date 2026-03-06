@@ -40,26 +40,12 @@ export default function StudentDashboard() {
           <div className="col-md-6 col-xl-3">
             <div className="card h-100 shadow-sm border-0">
               <div className="card-body">
-                <h5 className="card-title">My Profile</h5>
-                <p className="card-text text-muted">
-                  Keep your details updated so clients can trust your profile.
-                </p>
-                <Link to="/profile" className="btn btn-sm btn-primary">
-                  Go to Profile
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-md-6 col-xl-3">
-            <div className="card h-100 shadow-sm border-0">
-              <div className="card-body">
                 <h5 className="card-title">Browse Jobs</h5>
                 <p className="card-text text-muted">
                   Explore opportunities that match your skills and schedule.
                 </p>
                 <Link to="/jobs" className="btn btn-sm btn-primary">
-                  View Jobs
+                  Browse Jobs
                 </Link>
               </div>
             </div>
@@ -68,12 +54,12 @@ export default function StudentDashboard() {
           <div className="col-md-6 col-xl-3">
             <div className="card h-100 shadow-sm border-0">
               <div className="card-body">
-                <h5 className="card-title">Reviews</h5>
+                <h5 className="card-title">Messages</h5>
                 <p className="card-text text-muted">
-                  Check your ratings and see what clients think about your work.
+                  View your previous conversations and start new ones.
                 </p>
-                <Link to="/reviews" className="btn btn-sm btn-primary">
-                  View Reviews
+                <Link to="/messages" className="btn btn-sm btn-primary">
+                  View Messages
                 </Link>
               </div>
             </div>
@@ -88,6 +74,20 @@ export default function StudentDashboard() {
                 </p>
                 <Link to="/payment" className="btn btn-sm btn-primary">
                   Open Payments
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <div className="col-md-6 col-xl-3">
+            <div className="card h-100 shadow-sm border-0">
+              <div className="card-body">
+                <h5 className="card-title">Reviews</h5>
+                <p className="card-text text-muted">
+                  Check your ratings and see what clients think about your work.
+                </p>
+                <Link to="/reviews" className="btn btn-sm btn-primary">
+                  View Reviews
                 </Link>
               </div>
             </div>
