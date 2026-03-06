@@ -1,19 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-<<<<<<< HEAD
-
-<Navbar/>
-export default function ProfilePhotoSection() {
-  const [previewUrl, setPreviewUrl] = useState("");
-  const [file, setFile] = useState(null);
-  const [error, setError] = useState("");
-=======
 const MOCK_STUDENTS = [
   {
     id: 1,
     name: "Logan Phillips",
->>>>>>> origin/main
 
     skills: ["React", "Node.js"],
     salary: 25,

@@ -5,7 +5,7 @@ import Navbar from "../components/Navbar";
 import ReviewForm from "../components/ReviewForm";
 import ReviewList from "../components/ReviewList";
 import RatingStars from "../components/RatingStars";
-import { getReviewsForStudent, getReviewSummary } from "../api/supabaseapi.jsx";
+import { getReviewsForStudent, getReviewSummary } from "../api/supabaseapi";
 
 export default function Reviews() {
   const { user } = useAuth0();
