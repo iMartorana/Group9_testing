@@ -1,188 +1,146 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import Navbar from "../components/Navbar";
 
-const MOCK_STUDENTS = [
-  {
-    id: 1,
-    name: "Logan Phillips",
-
-    skills: ["React", "Node.js"],
-    salary: 25,
-    experience: 2,
-    availability: "Weekdays",
-  },
-  {
-    id: 2,
-    name: "Bob Smith",
-    skills: ["Python", "Excel"],
-    salary: 20,
-    experience: 1,
-    availability: "Weekends",
-  },
-  {
-    id: 3,
-    name: "Danny Brown",
-    
-    skills: ["Photoshop", "Illustrator"],
-    salary: 30,
-    experience: 3,
-    availability: "Flexible",
-  },
-  {
-    id: 4,
-    name: "Mary Johnson",
-    
-    skills: ["Math", "Physics"],
-    salary: 15,
-    experience: 1,
-    availability: "Evenings",
-  },
+const ALL_SKILLS = [
+  "Lawn-Meowing",
+  "Snow re-meow-val",
+  "Python",
+  "Excel",
+  "Photoshop",
+  "Illustrator",
+  "Math",
+  "Physics",
 ];
 
-const ALL_SKILLS = [...new Set(MOCK_STUDENTS.flatMap((s) => s.skills))];
-const ALL_AVAILABILITY = [...new Set(MOCK_STUDENTS.map((s) => s.availability))];
 
-export default function SkillListings() {
-  const navigate = useNavigate();
-
-  const [skillFilter, setSkillFilter] = useState("");
-  const [maxSalary, setMaxSalary] = useState("");
-  const [minExperience, setMinExperience] = useState("");
-  const [availabilityFilter, setAvailabilityFilter] = useState("");
-
-  const filtered = MOCK_STUDENTS.filter((student) => {
-    if (skillFilter && !student.skills.includes(skillFilter)) return false;
-    if (maxSalary && student.salary > Number(maxSalary)) return false;
-    if (minExperience && student.experience < Number(minExperience)) return false;
-    if (availabilityFilter && student.availability !== availabilityFilter) return false;
-    return true;
+export default function StudentProfile() {
+  const [profile, setProfile] = useState({
+    name: "Milania Mort",
+    bio: "I'm a cat attending UWM, attending Purr school of Cat and passionate about landscaping.  I'm very eager to work!",
+    Rate: 100,
+    experience: 2,
+    availability: "Weekdays",
+    skills: ["Lawn-Meowing", "Snow re-meow-val"],
   });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setProfile((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const toggleSkill = (skill) => {
+    setProfile((prev) => ({
+      ...prev,
+      skills: prev.skills.includes(skill)
+        ? prev.skills.filter((s) => s !== skill)
+        : [...prev.skills, skill],
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log("Saved profile:", profile);
+  };
 
   return (
     <>
-      <h2 className="mb-4">Browse Student Talent</h2>
+    <Navbar />
+    <div className="container py-4">
+      <h2 className="mb-4">My Profile</h2>
 
-      {/* Filters */}
-      <div className="card mb-4">
+      <form onSubmit={handleSubmit} className="card shadow-sm">
         <div className="card-body">
-          <h5 className="card-title mb-3">Filter Students</h5>
+          <div className="mb-3">
+            <label className="form-label">Name</label>
+            <input
+              className="form-control"
+              name="name"
+              value={profile.name}
+              onChange={handleChange}
+            />
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">Bio</label>
+            <textarea
+              className="form-control"
+              name="bio"
+              rows="3"
+              value={profile.bio}
+              onChange={handleChange}
+            />
+          </div>
 
           <div className="row g-3">
-            <div className="col-md-3">
-              <label className="form-label">Skill</label>
-              <select
-                className="form-select"
-                value={skillFilter}
-                onChange={(e) => setSkillFilter(e.target.value)}
-              >
-                <option value="">All</option>
-                {ALL_SKILLS.map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="col-md-3">
-              <label className="form-label">Max $/hr</label>
+            <div className="col-md-4">
+              <label className="form-label">Rate ($/hr)</label>
               <input
                 className="form-control"
                 type="number"
-                value={maxSalary}
-                onChange={(e) => setMaxSalary(e.target.value)}
+                name="salary"
+                value={profile.salary}
+                onChange={handleChange}
               />
             </div>
 
-            <div className="col-md-3">
-              <label className="form-label">Min Experience</label>
+            <div className="col-md-4">
+              <label className="form-label">Experience (years)</label>
               <input
                 className="form-control"
                 type="number"
-                value={minExperience}
-                onChange={(e) => setMinExperience(e.target.value)}
+                name="experience"
+                value={profile.experience}
+                onChange={handleChange}
               />
             </div>
 
-            <div className="col-md-3">
+            <div className="col-md-4">
               <label className="form-label">Availability</label>
               <select
                 className="form-select"
-                value={availabilityFilter}
-                onChange={(e) => setAvailabilityFilter(e.target.value)}
+                name="availability"
+                value={profile.availability}
+                onChange={handleChange}
               >
-                <option value="">Any</option>
-                {ALL_AVAILABILITY.map((a) => (
-                  <option key={a}>{a}</option>
-                ))}
+                <option value="Weekdays">Weekdays</option>
+                <option value="Weekends">Weekends</option>
+                <option value="Evenings">Evenings</option>
+                <option value="Flexible">Flexible</option>
               </select>
             </div>
+          </div>
 
-            <div className="col-12">
-              <button
-                className="btn btn-outline-secondary"
-                onClick={() => {
-                  setSkillFilter("");
-                  setMaxSalary("");
-                  setMinExperience("");
-                  setAvailabilityFilter("");
-                }}
-              >
-                Clear Filters
-              </button>
+          <div className="mt-4">
+            <label className="form-label d-block">Skills</label>
+            <div className="d-flex flex-wrap gap-2">
+              {ALL_SKILLS.map((skill) => (
+                <button
+                  type="button"
+                  key={skill}
+                  className={`btn btn-sm ${
+                    profile.skills.includes(skill)
+                      ? "btn-primary"
+                      : "btn-outline-primary"
+                  }`}
+                  onClick={() => toggleSkill(skill)}
+                >
+                  {skill}
+                </button>
+              ))}
             </div>
+          </div>
+
+          <div className="mt-4">
+            <button type="submit" className="btn btn-primary">
+              Save Profile
+            </button>
           </div>
         </div>
-      </div>
-
-      {/* Cards */}
-      <div className="row g-3">
-        {filtered.map((student) => (
-          <div className="col-md-6" key={student.id}>
-            <div className="card h-100 shadow-sm">
-              <div className="card-header">
-                <strong>{student.name}</strong>
-              </div>
-
-              <div className="card-body">
-                <p>Rate: ${student.salary}/hr</p>
-                <p>Experience: {student.experience} yrs</p>
-                <p>Availability: {student.availability}</p>
-
-                {student.skills.map((s) => (
-                  <span key={s} className="badge bg-primary me-1">
-                    {s}
-                  </span>
-                ))}
-              </div>
-
-              <div className="card-footer d-flex gap-2">
-                <button
-                  className="btn btn-outline-primary btn-sm flex-grow-1"
-                  onClick={() =>
-                    navigate(`/profile?email=${encodeURIComponent(student.email)}`)
-                  }
-                >
-                  View Profile
-                </button>
-
-                <button
-                  className="btn btn-outline-secondary btn-sm flex-grow-1"
-                  onClick={() =>
-                    navigate(
-                      `/reviews?studentEmail=${encodeURIComponent(student.email)}`
-                    )
-                  }
-                >
-                  Reviews
-                </button>
-
-                <button className="btn btn-primary btn-sm flex-grow-1">
-                  Contact
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      </form>
+    </div>
     </>
   );
 }
