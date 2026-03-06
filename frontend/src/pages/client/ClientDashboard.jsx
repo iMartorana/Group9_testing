@@ -45,7 +45,21 @@ export default function ClientDashboard() {
                   Search student talent by skills, experience, rate, and availability.
                 </p>
                 <Link to="/jobs" className="btn btn-sm btn-primary">
-                  Open Jobs
+                  Browse Students
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <div className="col-md-6 col-xl-3">
+            <div className="card h-100 shadow-sm border-0">
+              <div className="card-body">
+                <h5 className="card-title">Messages</h5>
+                <p className="card-text text-muted">
+                  View your previous conversations and start new ones.
+                </p>
+                <Link to="/messages" className="btn btn-sm btn-primary">
+                  View Messages
                 </Link>
               </div>
             </div>
@@ -74,20 +88,6 @@ export default function ClientDashboard() {
                 </p>
                 <Link to="/reviews" className="btn btn-sm btn-primary">
                   Open Reviews
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          <div className="col-md-6 col-xl-3">
-            <div className="card h-100 shadow-sm border-0">
-              <div className="card-body">
-                <h5 className="card-title">My Profile</h5>
-                <p className="card-text text-muted">
-                  Update your account, image, phone number, and personal bio.
-                </p>
-                <Link to="/profile" className="btn btn-sm btn-primary">
-                  Edit Profile
                 </Link>
               </div>
             </div>

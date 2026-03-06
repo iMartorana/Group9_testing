@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Card, Form, Button, Alert } from "react-bootstrap";
-import { upsertReview } from "../api/supabaseapi.jsx";
+import { upsertReview } from "../../api/supabaseapi.jsx";
 
 export default function ReviewForm({ studentEmail, clientEmail, onSubmitted }) {
   const [rating, setRating] = useState(5);

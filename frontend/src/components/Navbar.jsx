@@ -1,6 +1,6 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import { Link, useLocation } from "react-router-dom";
-import { Button, Container, Nav, Navbar as BsNavbar } from "react-bootstrap";
+import { Button, Container, Navbar as BsNavbar } from "react-bootstrap";
 import { getRoleForEmail } from "../providers/roleStore";
 
 export default function Navbar() {

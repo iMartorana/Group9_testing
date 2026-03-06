@@ -19,7 +19,6 @@ export default function ReviewList({ reviews = [] }) {
               <div>
                 <strong>Client:</strong> {r.client_email}
               </div>
-
               <div>
                 <RatingStars value={r.rating} />
               </div>
@@ -28,7 +27,7 @@ export default function ReviewList({ reviews = [] }) {
             {r.review_text && <div className="mb-2">{r.review_text}</div>}
 
             <div style={{ fontSize: "0.9em", opacity: 0.7 }}>
-              {r.created_at ? new Date(r.created_at).toLocaleString() : ""}
+              {new Date(r.created_at).toLocaleString()}
             </div>
           </Card.Body>
         </Card>

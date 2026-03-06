@@ -1,4 +1,4 @@
-import supabase from "../../../supabaseconfig";
+import { supabase } from "../supabaseconfig";
 /*
 File to contain wrapper functions that can call supabase functions. 
 Supabase configured in supabaseconfig.js
