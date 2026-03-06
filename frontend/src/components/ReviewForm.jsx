@@ -18,6 +18,7 @@ export default function ReviewForm({ studentEmail, clientEmail, onSubmitted }) {
     if (!clientEmail) return setErr("Missing client email.");
 
     setSaving(true);
+
     const { data, error } = await upsertReview({
       studentEmail,
       clientEmail,
@@ -34,11 +35,12 @@ export default function ReviewForm({ studentEmail, clientEmail, onSubmitted }) {
 
     setMsg("Review saved!");
     setReviewText("");
+
     if (onSubmitted) onSubmitted(data);
   };
 
   return (
-    <Card className="mb-3">
+    <Card className="mb-4">
       <Card.Header>Submit a Review</Card.Header>
       <Card.Body>
         {err && <Alert variant="danger">{err}</Alert>}

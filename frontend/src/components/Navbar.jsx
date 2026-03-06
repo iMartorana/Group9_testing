@@ -1,49 +1,56 @@
 import { useAuth0 } from "@auth0/auth0-react";
-import { Link } from "react-router-dom";
-import Button from "react-bootstrap/Button";
-import ButtonGroup from 'react-bootstrap/ButtonGroup';
+import { Link, useLocation } from "react-router-dom";
+import { Button, Container, Nav, Navbar as BsNavbar } from "react-bootstrap";
+import { getRoleForEmail } from "../providers/roleStore";
 
 export default function Navbar() {
   const { user, logout } = useAuth0();
+  const location = useLocation();
+
+  const role = getRoleForEmail(user?.email);
+
+  const getHomePath = () => {
+    if (role === "student") return "/student/dashboard";
+    if (role === "client") return "/client/dashboard";
+    if (role === "admin") return "/admin";
+    return "/post-login";
+  };
 
   const handleLogout = () =>
     logout({
       logoutParams: { returnTo: window.location.origin },
     });
 
+  // eslint-disable-next-line no-unused-vars
+  const navLinkClass = (path) =>
+    location.pathname === path ? "fw-semibold text-primary" : "";
+
   return (
-    <nav className="navbar navbar-expand-lg bg-light border-bottom">
-      <div className="container-fluid px-4">
-
-        <span className="navbar-brand fw-bold btn">
+    <BsNavbar bg="light" expand="lg" className="border-bottom shadow-sm">
+      <Container fluid className="px-4">
+        <BsNavbar.Brand as={Link} to={getHomePath()} className="fw-bold fs-4">
           UWM TradeSkill App
-        </span>
+        </BsNavbar.Brand>
 
-        <div className="d-flex gap-2 ms-3">
-            <ButtonGroup className="mb-2">
-                <Button className="btn" as={Link} to="/AdminDashboard">Home</Button>
-                <Button className="btn" as={Link} to="/Jobs">Jobs</Button>
-                <Button className="btn">Messages</Button>
-                <Button className="btn" as={Link} to="/Payment">Payment</Button>
-            </ButtonGroup>
-        </div>
+        <BsNavbar.Toggle aria-controls="main-navbar" />
+        <BsNavbar.Collapse id="main-navbar">
+          
 
-        <div className="ms-auto d-flex align-items-center gap-2">
-          <span className="small text-muted">
-            {user?.email || user?.name}
-          </span>
+          <div className="ms-auto d-flex align-items-center gap-2">
+            <span className="small text-muted d-none d-md-inline">
+              {user?.email || user?.name}
+            </span>
 
-          <Button className="btn btn-sm" as={Link} to="/Profile">Profile</Button>
+            <Button as={Link} to="/profile" variant="primary" size="sm">
+              Profile
+            </Button>
 
-          <button
-            className="btn btn-outline-secondary btn-sm"
-            onClick={handleLogout}
-          >
-            Logout
-          </button>
-        </div>
-
-      </div>
-    </nav>
+            <Button variant="outline-secondary" size="sm" onClick={handleLogout}>
+              Logout
+            </Button>
+          </div>
+        </BsNavbar.Collapse>
+      </Container>
+    </BsNavbar>
   );
 }

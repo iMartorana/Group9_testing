@@ -1,6 +1,5 @@
 export default function RatingStars({ value = 0 }) {
-  const rounded = Math.round(value * 10) / 10;
-
+  const rounded = Math.round(Number(value || 0) * 10) / 10;
   const full = Math.floor(rounded);
   const half = rounded - full >= 0.5;
 
@@ -9,7 +8,7 @@ export default function RatingStars({ value = 0 }) {
 
   for (let i = 1; i <= total; i++) {
     if (i <= full) stars.push("★");
-    else if (i === full + 1 && half) stars.push("⯪"); // simple half indicator
+    else if (i === full + 1 && half) stars.push("⯪");
     else stars.push("☆");
   }
 

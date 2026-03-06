@@ -1,187 +1,228 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
+import Navbar from "../components/Navbar";
 
-const MOCK_STUDENTS = [
-  {
-    id: 1,
-    name: "Logan Phillips",
+export default function Profile() {
+  const { user } = useAuth0();
 
-    skills: ["React", "Node.js"],
-    salary: 25,
-    experience: 2,
-    availability: "Weekdays",
-  },
-  {
-    id: 2,
-    name: "Bob Smith",
-    skills: ["Python", "Excel"],
-    salary: 20,
-    experience: 1,
-    availability: "Weekends",
-  },
-  {
-    id: 3,
-    name: "Danny Brown",
-    
-    skills: ["Photoshop", "Illustrator"],
-    salary: 30,
-    experience: 3,
-    availability: "Flexible",
-  },
-  {
-    id: 4,
-    name: "Mary Johnson",
-    
-    skills: ["Math", "Physics"],
-    salary: 15,
-    experience: 1,
-    availability: "Evenings",
-  },
-];
+  const storageKey = user?.email
+    ? `profile_${user.email.toLowerCase()}`
+    : "profile_guest";
 
-const ALL_SKILLS = [...new Set(MOCK_STUDENTS.flatMap((s) => s.skills))];
-const ALL_AVAILABILITY = [...new Set(MOCK_STUDENTS.map((s) => s.availability))];
+  const imageKey = user?.email
+    ? `profile_image_${user.email.toLowerCase()}`
+    : "profile_image_guest";
 
-export default function SkillListings() {
-  const navigate = useNavigate();
-
-  const [skillFilter, setSkillFilter] = useState("");
-  const [maxSalary, setMaxSalary] = useState("");
-  const [minExperience, setMinExperience] = useState("");
-  const [availabilityFilter, setAvailabilityFilter] = useState("");
-
-  const filtered = MOCK_STUDENTS.filter((student) => {
-    if (skillFilter && !student.skills.includes(skillFilter)) return false;
-    if (maxSalary && student.salary > Number(maxSalary)) return false;
-    if (minExperience && student.experience < Number(minExperience)) return false;
-    if (availabilityFilter && student.availability !== availabilityFilter) return false;
-    return true;
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    bio: "",
+    password: "",
   });
+
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    const savedProfile = localStorage.getItem(storageKey);
+    const savedImage = localStorage.getItem(imageKey);
+
+    if (savedProfile) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setForm(JSON.parse(savedProfile));
+    } else {
+      setForm({
+        name: user?.name || "",
+        email: user?.email || "",
+        phone: "",
+        bio: "",
+        password: "",
+      });
+    }
+
+    if (savedImage) {
+      setPreviewUrl(savedImage);
+    } else {
+      setPreviewUrl(user?.picture || "");
+    }
+  }, [user, storageKey, imageKey]);
+
+  const handleChange = (e) => {
+    setSuccess("");
+    const { name, value } = e.target;
+
+    if (name === "phone") {
+      const digitsOnly = value.replace(/\D/g, "").slice(0, 10);
+      setForm({ ...form, phone: digitsOnly });
+      return;
+    }
+
+    setForm({ ...form, [name]: value });
+  };
+
+  const handleImageChange = (e) => {
+    setError("");
+    setSuccess("");
+
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("Please choose a valid image file.");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be under 5MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreviewUrl(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (form.phone && form.phone.length !== 10) {
+      setError("Phone number must be exactly 10 digits.");
+      return;
+    }
+
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(form));
+      if (previewUrl) {
+        localStorage.setItem(imageKey, previewUrl);
+      }
+      setSuccess("Profile changes saved successfully.");
+    } catch (err) {
+      setError("Could not save profile changes.");
+      console.error(err);
+    }
+  };
 
   return (
     <>
-      <h2 className="mb-4">Browse Student Talent</h2>
+      <Navbar />
 
-      {/* Filters */}
-      <div className="card mb-4">
-        <div className="card-body">
-          <h5 className="card-title mb-3">Filter Students</h5>
+      <div className="container py-4">
+        <h2 className="mb-4">My Profile</h2>
 
-          <div className="row g-3">
-            <div className="col-md-3">
-              <label className="form-label">Skill</label>
-              <select
-                className="form-select"
-                value={skillFilter}
-                onChange={(e) => setSkillFilter(e.target.value)}
-              >
-                <option value="">All</option>
-                {ALL_SKILLS.map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
+        <div className="row g-4">
+          <div className="col-lg-4">
+            <div className="card shadow-sm">
+              <div className="card-body text-center">
+                <img
+                  src={previewUrl || "https://placehold.co/140x140"}
+                  alt="Profile"
+                  className="rounded-circle mb-3"
+                  width="140"
+                  height="140"
+                  style={{ objectFit: "cover" }}
+                />
+
+                <div className="mb-3 text-start">
+                  <label className="form-label fw-semibold">
+                    Upload Profile Photo
+                  </label>
+                  <input
+                    type="file"
+                    className="form-control"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                  />
+                  <div className="form-text">PNG or JPG, max 5MB.</div>
+                </div>
+              </div>
             </div>
+          </div>
 
-            <div className="col-md-3">
-              <label className="form-label">Max $/hr</label>
-              <input
-                className="form-control"
-                type="number"
-                value={maxSalary}
-                onChange={(e) => setMaxSalary(e.target.value)}
-              />
-            </div>
+          <div className="col-lg-8">
+            <div className="card shadow-sm">
+              <div className="card-body">
+                <h5 className="card-title mb-3">Edit Profile Details</h5>
 
-            <div className="col-md-3">
-              <label className="form-label">Min Experience</label>
-              <input
-                className="form-control"
-                type="number"
-                value={minExperience}
-                onChange={(e) => setMinExperience(e.target.value)}
-              />
-            </div>
+                {error && <div className="alert alert-danger">{error}</div>}
+                {success && <div className="alert alert-success">{success}</div>}
 
-            <div className="col-md-3">
-              <label className="form-label">Availability</label>
-              <select
-                className="form-select"
-                value={availabilityFilter}
-                onChange={(e) => setAvailabilityFilter(e.target.value)}
-              >
-                <option value="">Any</option>
-                {ALL_AVAILABILITY.map((a) => (
-                  <option key={a}>{a}</option>
-                ))}
-              </select>
-            </div>
+                <form onSubmit={handleSave}>
+                  <div className="row g-3">
+                    <div className="col-md-6">
+                      <label className="form-label">Full Name</label>
+                      <input
+                        type="text"
+                        name="name"
+                        className="form-control"
+                        value={form.name}
+                        onChange={handleChange}
+                      />
+                    </div>
 
-            <div className="col-12">
-              <button
-                className="btn btn-outline-secondary"
-                onClick={() => {
-                  setSkillFilter("");
-                  setMaxSalary("");
-                  setMinExperience("");
-                  setAvailabilityFilter("");
-                }}
-              >
-                Clear Filters
-              </button>
+                    <div className="col-md-6">
+                      <label className="form-label">Email</label>
+                      <input
+                        type="email"
+                        name="email"
+                        className="form-control"
+                        value={form.email}
+                        disabled
+                      />
+                    </div>
+
+                    <div className="col-md-6">
+                      <label className="form-label">Phone Number</label>
+                      <input
+                        type="text"
+                        name="phone"
+                        className="form-control"
+                        placeholder="Enter 10-digit phone number"
+                        value={form.phone}
+                        onChange={handleChange}
+                        maxLength={10}
+                      />
+                    </div>
+
+                    <div className="col-md-6">
+                      <label className="form-label">New Password</label>
+                      <input
+                        type="password"
+                        name="password"
+                        className="form-control"
+                        placeholder="Enter new password"
+                        value={form.password}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <div className="col-12">
+                      <label className="form-label">Bio</label>
+                      <textarea
+                        name="bio"
+                        className="form-control"
+                        rows="4"
+                        placeholder="Tell us about yourself"
+                        value={form.bio}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <div className="col-12">
+                      <button type="submit" className="btn btn-primary px-4">
+                        Save Changes
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Cards */}
-      <div className="row g-3">
-        {filtered.map((student) => (
-          <div className="col-md-6" key={student.id}>
-            <div className="card h-100 shadow-sm">
-              <div className="card-header">
-                <strong>{student.name}</strong>
-              </div>
-
-              <div className="card-body">
-                <p>Rate: ${student.salary}/hr</p>
-                <p>Experience: {student.experience} yrs</p>
-                <p>Availability: {student.availability}</p>
-
-                {student.skills.map((s) => (
-                  <span key={s} className="badge bg-primary me-1">
-                    {s}
-                  </span>
-                ))}
-              </div>
-
-              <div className="card-footer d-flex gap-2">
-                <button
-                  className="btn btn-outline-primary btn-sm flex-grow-1"
-                  onClick={() =>
-                    navigate(`/profile?email=${encodeURIComponent(student.email)}`)
-                  }
-                >
-                  View Profile
-                </button>
-
-                <button
-                  className="btn btn-outline-secondary btn-sm flex-grow-1"
-                  onClick={() =>
-                    navigate(
-                      `/reviews?studentEmail=${encodeURIComponent(student.email)}`
-                    )
-                  }
-                >
-                  Reviews
-                </button>
-
-                <button className="btn btn-primary btn-sm flex-grow-1">
-                  Contact
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
       </div>
     </>
   );
