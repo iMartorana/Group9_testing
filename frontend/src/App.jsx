@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
 
 import Login from "./pages/login";
@@ -8,8 +8,9 @@ import ClientDashboard from "./pages/client/ClientDashboard";
 import PostLoginRedirect from "./pages/PostLoginRedirect";
 import Profile from "./pages/Profile";
 import Jobs from "./pages/Jobs";
+import Payment from "./pages/Payment";
 import Reviews from "./pages/Reviews";
-import { useLocation } from "react-router-dom";
+import Messages from "./pages/Messages";
 
 function RequireAuth({ children }) {
   const { isAuthenticated, isLoading } = useAuth0();
@@ -99,6 +100,15 @@ export default function App() {
         />
 
         <Route
+          path="/payment"
+          element={
+            <RequireAuth>
+              <Payment />
+            </RequireAuth>
+          }
+        />
+
+        <Route
           path="/reviews"
           element={
             <RequireAuth>
@@ -107,7 +117,15 @@ export default function App() {
           }
         />
 
-        {/* Catch-all MUST be last */}
+        <Route
+          path="/messages"
+          element={
+            <RequireAuth>
+              <Messages />
+            </RequireAuth>
+          }
+        />
+
         <Route
           path="*"
           element={

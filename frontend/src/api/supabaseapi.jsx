@@ -1,4 +1,18 @@
-import supabase from "../../../supabaseconfig.js";
+import { supabase } from "../supabaseconfig";
+/*
+File to contain wrapper functions that can call supabase functions. 
+Supabase configured in supabaseconfig.js
+Supabase installed on system using scoop in command line
+Supabase commands to retrieve and set up database. Connection should be made already,
+so these are for set up. Need docker desktop running
+supabase start
+supabase migration up
+supabase push
+supabase pull
+Dependencies:
+supabase
+supabase-js
+*/
 
 /*
   supabaseapi.jsx
