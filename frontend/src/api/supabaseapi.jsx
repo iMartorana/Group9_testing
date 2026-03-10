@@ -469,42 +469,68 @@ export async function upsertReview({ studentEmail, clientEmail, rating, reviewTe
 // ─────────────────────────────────────────────────
 // JOB SEARCHING
 // ─────────────────────────────────────────────────
+//I probably don't need to get the skill names. The entry can just use the id,
+//then get them in another function for display. It would clean this up a bit
 /*
 Search for jobs using skills. Order by average rating
 The data used can be handled more on the front end side.
-Takes skills in a format like ("skill1", "skill2")
+Takes skills in a format like (1, 2)
 Only returns the number from numReturn. Calls can double this
 */
 export async function getJobsBySkillsRatings(skills, numReturn) {
   return await supabase
-  .from("listings")
-  .select(`
-      *,
-      users(user_id, first_name, last_name, email),
-      listingsskills(skills(skill_id, name)),
-      reviews(reviewee_user_id, avg_rating:rating.avg())
-    `)
-    .filter('name', 'in', skills)
-    .order('avg_rating', { ascending: false})
-    .limit(numReturn)
+  .from('listings')
+  .select(
+    `
+    listing_id,
+    student_id,
+    title,
+    description,
+    status,
+    location_text,
+    pricing_type,
+    pricing_amount,
+    updated_at,
+    ...reviews!inner(
+      avg_rating:rating.avg()
+    ),
+    ...users!inner(),
+    ...listingsskills!inner()
+    `,
+  )
+  .in('listingsskills.skill_id', skills)
+  .order('avg_rating')
+  .limit(numReturn)
 }
 
 /*
 Search for jobs using skills. Order by updated time
 The data used can be handled more on the front end side.
-Takes skills in a format like ("skill1", "skill2")
+Takes skills in a format like (1, 2)
 Only returns the number from numReturn. Calls can double this
 */
 export async function getJobsBySkillsTime(skills, numReturn){
   return await supabase
-  .from("listings")
-  .select(`
-      *,
-      users(user_id, first_name, last_name, email),
-      listingsskills(skills(skill_id, name)),
-      reviews(reviewee_user_id, avg_rating:rating.avg())
-    `)
-    .filter('name', 'in', skills)
-    .order('updated_at', { ascending: false})
-    .limit(numReturn)
+  .from('listings')
+  .select(
+    `
+    listing_id,
+    student_id,
+    title,
+    description,
+    status,
+    location_text,
+    pricing_type,
+    pricing_amount,
+    updated_at,
+    ...reviews!inner(
+      avg_rating:rating.avg()
+    ),
+    ...users!inner(),
+    ...listingsskills!inner()
+    `,
+  )
+  .in('listingsskills.skill_id', skills)
+  .order('updated_at')
+  .limit(numReturn)
 }
