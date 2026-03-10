@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
+import { createUser, getUserByEmail } from "./services/userServices";
+import { useEffect } from "react";
 
 import Login from "./pages/login";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -26,7 +28,30 @@ function RequireAuth({ children }) {
 }
 
 export default function App() {
-  const { error, isAuthenticated } = useAuth0();
+  const { error, isAuthenticated, isLoading, user } = useAuth0();
+
+  useEffect(() => {
+    const syncUser = async () => {
+      if (isLoading || !isAuthenticated || !user?.email) return;
+
+      const existingUser = await getUserByEmail(user.email);
+
+      if (!existingUser) {
+        const role = localStorage.getItem("signup_role") || "client";
+
+        await createUser({
+          email: user.email,
+          first_name: user.first_name || "",
+          last_name: user.last_name || "",
+          role: role
+        });
+
+        localStorage.removeItem("signup_role");
+      }
+    };
+
+    syncUser();
+  }, [user, isAuthenticated, isLoading]);
 
   return (
     <>
@@ -35,7 +60,6 @@ export default function App() {
           <div className="alert alert-danger">{error.message}</div>
         </div>
       )}
-
       <Routes>
         <Route
           path="/"
