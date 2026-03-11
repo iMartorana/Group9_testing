@@ -5,7 +5,7 @@ import {
   getRoleForEmail,
   getSignupRole,
   setRoleForEmail,
-  clearSignupRole,
+  //clearSignupRole,
 } from "../providers/roleStore";
 
 export default function PostLoginRedirect() {
@@ -42,7 +42,7 @@ export default function PostLoginRedirect() {
       if (signupRole === "student" || signupRole === "client") {
         role = signupRole;
         setRoleForEmail(email, role);
-        clearSignupRole();
+        //clearSignupRole();
       }
     }
 

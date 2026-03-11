@@ -35,8 +35,7 @@ export default function Jobs() {
 
   return (
     <>
-       <Navbar />
-
+      <Navbar />
       <div className="container py-4">
         {role === "student" ? <JobListings /> : <SkillListings />}
       </div>

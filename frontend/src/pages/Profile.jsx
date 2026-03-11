@@ -1,65 +1,70 @@
 import { useEffect, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import Navbar from "../components/Navbar";
+import { getProfileByEmail, updateProfile } from "../services/profileService";
 
 export default function Profile() {
   const { user } = useAuth0();
-
-  const storageKey = user?.email
-    ? `profile_${user.email.toLowerCase()}`
-    : "profile_guest";
-
-  const imageKey = user?.email
-    ? `profile_image_${user.email.toLowerCase()}`
-    : "profile_image_guest";
 
   const [form, setForm] = useState({
     name: "",
     email: "",
     phone: "",
     bio: "",
-    password: "",
   });
 
   const [previewUrl, setPreviewUrl] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
-    const savedProfile = localStorage.getItem(storageKey);
-    const savedImage = localStorage.getItem(imageKey);
+    const loadProfile = async () => {
+      if (!user?.email) return;
 
-    if (savedProfile) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setForm(JSON.parse(savedProfile));
-    } else {
-      setForm({
-        name: user?.name || "",
-        email: user?.email || "",
-        phone: "",
-        bio: "",
-        password: "",
-      });
-    }
+      try {
+        const profileData = await getProfileByEmail(user.email);
+        setProfile(profileData);
 
-    if (savedImage) {
-      setPreviewUrl(savedImage);
-    } else {
-      setPreviewUrl(user?.picture || "");
-    }
-  }, [user, storageKey, imageKey]);
+        if (profileData) {
+          setForm({
+            name: `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim(),
+            email: profileData.email || user.email || "",
+            phone: profileData.phone || "",
+            bio: profileData.bio || "",
+          });
+        } else {
+          setForm({
+            name: user.name || "",
+            email: user.email || "",
+            phone: "",
+            bio: "",
+          });
+        }
+
+        setPreviewUrl(user.picture || "");
+      } catch (err) {
+        console.error(err);
+        setError("Could not load profile.");
+      }
+    };
+
+    loadProfile();
+  }, [user]);
 
   const handleChange = (e) => {
+    setError("");
     setSuccess("");
+
     const { name, value } = e.target;
 
     if (name === "phone") {
       const digitsOnly = value.replace(/\D/g, "").slice(0, 10);
-      setForm({ ...form, phone: digitsOnly });
+      setForm((prev) => ({ ...prev, phone: digitsOnly }));
       return;
     }
 
-    setForm({ ...form, [name]: value });
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleImageChange = (e) => {
@@ -86,9 +91,15 @@ export default function Profile() {
     reader.readAsDataURL(file);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
+
+    if (!user?.email) {
+      setError("No authenticated user found.");
+      return;
+    }
 
     if (form.phone && form.phone.length !== 10) {
       setError("Phone number must be exactly 10 digits.");
@@ -96,14 +107,27 @@ export default function Profile() {
     }
 
     try {
-      localStorage.setItem(storageKey, JSON.stringify(form));
-      if (previewUrl) {
-        localStorage.setItem(imageKey, previewUrl);
+      const nameParts = form.name.trim().split(" ");
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ");
+
+      const updatedProfile = await updateProfile(user.email, {
+        first_name: firstName,
+        last_name: lastName,
+        phone: form.phone,
+        bio: form.bio,
+      });
+
+      if (!updatedProfile) {
+        setError("Could not save profile changes.");
+        return;
       }
+
+      setProfile(updatedProfile);
       setSuccess("Profile changes saved successfully.");
     } catch (err) {
-      setError("Could not save profile changes.");
       console.error(err);
+      setError("Could not save profile changes.");
     }
   };
 
@@ -112,7 +136,9 @@ export default function Profile() {
       <Navbar />
 
       <div className="container py-4">
-        <h2 className="mb-4">My Profile</h2>
+        <h2 className="mb-4">
+          My Profile ({profile?.role || "Loading..."})
+        </h2>
 
         <div className="row g-4">
           <div className="col-lg-4">
@@ -185,18 +211,6 @@ export default function Profile() {
                         value={form.phone}
                         onChange={handleChange}
                         maxLength={10}
-                      />
-                    </div>
-
-                    <div className="col-md-6">
-                      <label className="form-label">New Password</label>
-                      <input
-                        type="password"
-                        name="password"
-                        className="form-control"
-                        placeholder="Enter new password"
-                        value={form.password}
-                        onChange={handleChange}
                       />
                     </div>
 
