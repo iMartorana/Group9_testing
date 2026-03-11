@@ -29,7 +29,7 @@ export default function Navbar() {
     <BsNavbar bg="light" expand="lg" className="border-bottom shadow-sm">
       <Container fluid className="px-4">
         <BsNavbar.Brand as={Link} to={getHomePath()} className="fw-bold fs-4">
-          UWM TradeSkill App
+          TaskFinder
         </BsNavbar.Brand>
 
         <BsNavbar.Toggle aria-controls="main-navbar" />

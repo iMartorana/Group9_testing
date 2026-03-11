@@ -16,20 +16,22 @@ export default function Profile() {
   const [previewUrl, setPreviewUrl] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
     const loadProfile = async () => {
       if (!user?.email) return;
 
       try {
-        const profile = await getProfileByEmail(user.email);
+        const profileData = await getProfileByEmail(user.email);
+        setProfile(profileData);
 
-        if (profile) {
+        if (profileData) {
           setForm({
-            name: `${profile.first_name || ""} ${profile.last_name || ""}`.trim(),
-            email: profile.email || user.email || "",
-            phone: profile.phone || "",
-            bio: profile.bio || "",
+            name: `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim(),
+            email: profileData.email || user.email || "",
+            phone: profileData.phone || "",
+            bio: profileData.bio || "",
           });
         } else {
           setForm({
@@ -121,6 +123,7 @@ export default function Profile() {
         return;
       }
 
+      setProfile(updatedProfile);
       setSuccess("Profile changes saved successfully.");
     } catch (err) {
       console.error(err);
@@ -133,7 +136,9 @@ export default function Profile() {
       <Navbar />
 
       <div className="container py-4">
-        <h2 className="mb-4">My Profile</h2>
+        <h2 className="mb-4">
+          My Profile ({profile?.role || "Loading..."})
+        </h2>
 
         <div className="row g-4">
           <div className="col-lg-4">
