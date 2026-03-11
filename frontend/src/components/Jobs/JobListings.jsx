@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../supabaseconfig";
+import { getJobsBySkillsRatings }from "../../api/supabaseapi.jsx"
 
 export default function JobListings() {
   const [listings, setListings] = useState([]);
@@ -21,6 +22,7 @@ export default function JobListings() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        /*
         const { data: listingData, error: listingError } = await supabase
           .from("listings")
           .select(`
@@ -61,7 +63,24 @@ export default function JobListings() {
         setLoading(false);
       }
     };
-
+    */
+      const { data: listingData, error: listingError } = getJobsBySkillsRatings(skill, 5);
+      if (listingError) throw listingError;
+        setListings(listingData || []);
+        //There isn't actually a get individual skill function. May add one later
+        const { data: skillData, error: skillError } = await supabase
+          .from("skills")
+          .select("skill_id, name")
+          .eq("is_active", true);
+          if (skillError) throw skillError;
+        setSkills(skillData || []);
+      } catch (err) {
+        console.error("Failed to fetch listings:", err);
+      } finally {
+        setLoading(false);
+      }
+      };
+      
     fetchData();
   }, []);
 
