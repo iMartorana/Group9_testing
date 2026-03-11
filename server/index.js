@@ -66,6 +66,31 @@ app.get("/api/me", requireAuth, (req, res) => {
   res.json(row);
 });
 
+// --- POST /api/auth/sync ---
+// Called by the frontend on every login.
+// Creates the user row if it doesn't exist yet, then returns their role.
+app.post("/api/auth/sync", requireAuth, (req, res) => {
+  const sub = req.user.sub;
+  // Auth0 puts email in a namespaced claim OR the standard "email" field
+  // depending on how your Auth0 Actions/Rules are configured.
+  const email =
+    req.user["https://capstone/email"] || req.user.email || null;
+
+  // Insert only if this auth0_sub has never been seen before.
+  // DO NOTHING means existing users (and their roles) are never overwritten.
+  db.prepare(`
+    INSERT INTO users (auth0_sub, email, role)
+    VALUES (?, ?, 'client')
+    ON CONFLICT(auth0_sub) DO NOTHING
+  `).run(sub, email);
+
+  const row = db
+    .prepare("SELECT role, email, created_at FROM users WHERE auth0_sub = ?")
+    .get(sub);
+
+  res.json({ role: row.role, email: row.email });
+});
+
 // Dev helper: set your role quickly (remove later if you want)
 app.post("/api/dev/set-role", requireAuth, (req, res) => {
   const { role } = req.body;
@@ -82,5 +107,8 @@ app.post("/api/dev/set-role", requireAuth, (req, res) => {
   res.json({ ok: true, role });
 });
 
+
+
 const port = process.env.PORT || 5001;
 app.listen(port, () => console.log(`Server running on ${port}`));
+
