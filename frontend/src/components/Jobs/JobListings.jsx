@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { supabase } from "../../supabaseconfig";
+import { getJobsBySkillsRatings }from "../../api/supabaseapi.jsx"
 
 export default function JobListings() {
   const { user } = useAuth0();
@@ -29,8 +30,32 @@ export default function JobListings() {
   });
 
   useEffect(() => {
-    if (user?.email) fetchData();
-  }, [user]);
+    const fetchData = async () => {
+      try {
+        /*
+        const { data: listingData, error: listingError } = await supabase
+          .from("listings")
+          .select(`
+            listing_id,
+            title,
+            description,
+            location_text,
+            pricing_type,
+            price_amount,
+            created_at,
+            status,
+            users!listings_student_id_fkey (
+              first_name,
+              last_name
+            ),
+            listingsskills (
+              skills (
+                skill_id,
+                name
+              )
+            )
+          `)
+          .eq("status", "active");
 
   const fetchData = async () => {
     try {
@@ -44,33 +69,34 @@ export default function JobListings() {
 
       await fetchListings();
 
-      const { data: skillData, error: skillError } = await supabase
-        .from("skills")
-        .select("skill_id, name")
-        .eq("is_active", true)
-        .order("name");
-      if (skillError) throw skillError;
-      setSkills(skillData || []);
-    } catch (err) {
-      console.error("Failed to fetch data:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchListings = async () => {
-    const { data, error } = await supabase
-      .from("listings")
-      .select(`
-        listing_id, title, description, location_text,
-        pricing_type, price_amount, created_at, student_id,
-        users!listings_student_id_fkey ( first_name, last_name ),
-        listingsskills ( skills ( skill_id, name ) )
-      `)
-      .eq("status", "active");
-    if (error) throw error;
-    setListings(data || []);
-  };
+        if (skillError) throw skillError;
+        setSkills(skillData || []);
+      } catch (err) {
+        console.error("Failed to fetch listings:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    */
+      const { data: listingData, error: listingError } = getJobsBySkillsRatings(skill, 5);
+      if (listingError) throw listingError;
+        setListings(listingData || []);
+        //There isn't actually a get individual skill function. May add one later
+        const { data: skillData, error: skillError } = await supabase
+          .from("skills")
+          .select("skill_id, name")
+          .eq("is_active", true);
+          if (skillError) throw skillError;
+        setSkills(skillData || []);
+      } catch (err) {
+        console.error("Failed to fetch listings:", err);
+      } finally {
+        setLoading(false);
+      }
+      };
+      
+    fetchData();
+  }, []);
 
   const handleApplyFilters = () => {
     setApplied({ skill: skillFilter, location: locationFilter, minPay, date: dateFilter, pricingType });
