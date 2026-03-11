@@ -2,6 +2,15 @@ import { useEffect, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import Navbar from "../components/Navbar";
 
+const BIO_MAX = 1024;
+
+function formatPhone(digits) {
+  if (!digits) return "";
+  if (digits.length <= 3) return `(${digits}`;
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 export default function Profile() {
   const { user } = useAuth0();
 
@@ -181,11 +190,12 @@ export default function Profile() {
                         type="text"
                         name="phone"
                         className="form-control"
-                        placeholder="Enter 10-digit phone number"
-                        value={form.phone}
+                        placeholder="(414) 555-0123"
+                        value={formatPhone(form.phone)}
                         onChange={handleChange}
-                        maxLength={10}
+                        maxLength={14}
                       />
+                      <div className="form-text">10-digit US phone number</div>
                     </div>
 
                     <div className="col-md-6">
@@ -209,7 +219,11 @@ export default function Profile() {
                         placeholder="Tell us about yourself"
                         value={form.bio}
                         onChange={handleChange}
+                        maxLength={BIO_MAX}
                       />
+                      <div className={`form-text text-end ${form.bio.length >= BIO_MAX ? "text-danger" : ""}`}>
+                        {form.bio.length} / {BIO_MAX} characters
+                      </div>
                     </div>
 
                     <div className="col-12">
