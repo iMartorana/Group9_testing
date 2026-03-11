@@ -498,6 +498,7 @@ export async function getJobsBySkillsRatings(skills, numReturn) {
     ...listingsskills!inner()
     `,
   )
+  .eq('status', 'active')
   .in('listingsskills.skill_id', skills)
   .order('avg_rating')
   .limit(numReturn)
@@ -530,6 +531,7 @@ export async function getJobsBySkillsTime(skills, numReturn){
     ...listingsskills!inner()
     `,
   )
+  .eq('status', 'active')
   .in('listingsskills.skill_id', skills)
   .order('updated_at')
   .limit(numReturn)
