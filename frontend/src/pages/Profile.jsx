@@ -2,9 +2,16 @@ import { useEffect, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import Navbar from "../components/Navbar";
 import { getProfileByEmail, updateProfile } from "../services/profileService";
+import {
+  getActiveSkills,
+  getProfileSkills,
+  saveProfileSkills,
+} from "../services/skillService";
 
 export default function Profile() {
   const { user } = useAuth0();
+  const [allSkills, setAllSkills] = useState([]);
+  const [selectedSkills, setSelectedSkills] = useState([]);
 
   const [form, setForm] = useState({
     name: "",
@@ -13,44 +20,58 @@ export default function Profile() {
     bio: "",
   });
 
+  const handleSkillToggle = (skillId) => {
+  setSelectedSkills((prev) =>
+    prev.includes(skillId)
+      ? prev.filter((id) => id !== skillId)
+      : [...prev, skillId]
+  );
+};
+
   const [previewUrl, setPreviewUrl] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [profile, setProfile] = useState(null);
 
   useEffect(() => {
-    const loadProfile = async () => {
-      if (!user?.email) return;
+  const loadProfile = async () => {
+    if (!user?.email) return;
 
-      try {
-        const profileData = await getProfileByEmail(user.email);
-        setProfile(profileData);
+    try {
+      const profileData = await getProfileByEmail(user.email);
+      setProfile(profileData);
 
-        if (profileData) {
-          setForm({
-            name: `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim(),
-            email: profileData.email || user.email || "",
-            phone: profileData.phone || "",
-            bio: profileData.bio || "",
-          });
-        } else {
-          setForm({
-            name: user.name || "",
-            email: user.email || "",
-            phone: "",
-            bio: "",
-          });
-        }
+      const skillsData = await getActiveSkills();
+      setAllSkills(skillsData);
 
-        setPreviewUrl(user.picture || "");
-      } catch (err) {
-        console.error(err);
-        setError("Could not load profile.");
+      if (profileData) {
+        setForm({
+          name: `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim(),
+          email: profileData.email || user.email || "",
+          phone: profileData.phone || "",
+          bio: profileData.bio || "",
+        });
+
+        const userSkillIds = await getProfileSkills(profileData.student_id);
+        setSelectedSkills(userSkillIds);
+      } else {
+        setForm({
+          name: user.name || "",
+          email: user.email || "",
+          phone: "",
+          bio: "",
+        });
       }
-    };
 
-    loadProfile();
-  }, [user]);
+      setPreviewUrl(user.picture || "");
+    } catch (err) {
+      console.error(err);
+      setError("Could not load profile.");
+    }
+  };
+
+  loadProfile();
+}, [user]);
 
   const handleChange = (e) => {
     setError("");
@@ -122,6 +143,8 @@ export default function Profile() {
         setError("Could not save profile changes.");
         return;
       }
+
+      await saveProfileSkills(updatedProfile.student_id, selectedSkills);
 
       setProfile(updatedProfile);
       setSuccess("Profile changes saved successfully.");
@@ -224,6 +247,26 @@ export default function Profile() {
                         value={form.bio}
                         onChange={handleChange}
                       />
+                    </div>
+
+                    <div className="col-12">
+                      <label className="form-label">Skills</label>
+                      <div className="d-flex flex-wrap gap-2">
+                        {allSkills.map((skill) => {
+                          const isSelected = selectedSkills.includes(skill.skill_id);
+
+                          return (
+                            <button
+                              key={skill.skill_id}
+                              type="button"
+                              className={`btn ${isSelected ? "btn-primary" : "btn-outline-primary"}`}
+                              onClick={() => handleSkillToggle(skill.skill_id)}
+                            >
+                              {skill.name}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     <div className="col-12">

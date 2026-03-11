@@ -42,7 +42,7 @@ export default function PostLoginRedirect() {
       if (signupRole === "student" || signupRole === "client") {
         role = signupRole;
         setRoleForEmail(email, role);
-        //clearSignupRole();
+        //clearSignupRole(); -> Removed clearSignupRole because role was being cleared before user was being put into database
       }
     }
 
