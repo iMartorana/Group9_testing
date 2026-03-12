@@ -25,7 +25,14 @@ export default function ConversationView({ dbUser, conversation }) {
         table: "messages",
         filter: `conversation_id=eq.${conversation.conversation_id}`,
       }, (payload) => {
-        setMessages(prev => [...prev, payload.new]);
+        setMessages(prev => {
+          const exists = prev.some(m => m.message_id === payload.new.message_id);
+          if (exists) return prev;
+          const withoutOptimistic = prev.filter(
+            m => !(m._optimistic && m.body === payload.new.body && m.sender_user_id === payload.new.sender_user_id)
+          );
+          return [...withoutOptimistic, payload.new];
+        });
       })
       .subscribe();
 
@@ -50,17 +57,33 @@ export default function ConversationView({ dbUser, conversation }) {
 
   const handleSend = async () => {
     if (!newMessage.trim()) return;
+    const body = newMessage.trim();
+    const optimisticId = `optimistic-${Date.now()}`;
+ 
+    const optimisticMsg = {
+      message_id: optimisticId,
+      conversation_id: conversation.conversation_id,
+      sender_user_id: dbUser.user_id,
+      body,
+      sent_at: new Date().toISOString(),
+      _optimistic: true,
+    };
+ 
+    setMessages(prev => [...prev, optimisticMsg]);
+    setNewMessage("");
     setSending(true);
+
     try {
       const { error } = await sendMessage({
         conversationId: conversation.conversation_id,
         senderUserId: dbUser.user_id,
-        body: newMessage.trim(),
+        body,
       });
       if (error) throw error;
-      setNewMessage("");
     } catch (err) {
       console.error("Failed to send message:", err);
+      setMessages(prev => prev.filter(m => m.message_id !== optimisticId));
+      setNewMessage(body);
       alert("Failed to send message.");
     } finally {
       setSending(false);
