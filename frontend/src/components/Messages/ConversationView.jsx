@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../supabaseconfig";
+import { getMessagesForConversation, sendMessage } from "../../services/supabaseapi";
 
 export default function ConversationView({ dbUser, conversation }) {
   const [messages, setMessages] = useState([]);
@@ -9,27 +10,27 @@ export default function ConversationView({ dbUser, conversation }) {
   const bottomRef = useRef(null);
 
   useEffect(() => {
+    if (!conversation?.conversation_id) return;
+    
+    setMessages([]);
+    setLoading(true);
     fetchMessages();
 
     // Subscribe to new messages in real time
     const channel = supabase
       .channel(`conversation-${conversation.conversation_id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "messages",
-          filter: `conversation_id=eq.${conversation.conversation_id}`,
-        },
-        (payload) => {
-          setMessages(prev => [...prev, payload.new]);
-        }
-      )
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+        filter: `conversation_id=eq.${conversation.conversation_id}`,
+      }, (payload) => {
+        setMessages(prev => [...prev, payload.new]);
+      })
       .subscribe();
 
     return () => supabase.removeChannel(channel);
-  }, [conversation.conversation_id]);
+  }, [conversation?.conversation_id]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -37,21 +38,7 @@ export default function ConversationView({ dbUser, conversation }) {
 
   const fetchMessages = async () => {
     try {
-      const { data, error } = await supabase
-        .from("messages")
-        .select(`
-          message_id,
-          body,
-          sent_at,
-          sender_user_id,
-          users!messages_sender_user_id_fkey (
-            first_name,
-            last_name
-          )
-        `)
-        .eq("conversation_id", conversation.conversation_id)
-        .order("sent_at", { ascending: true });
-
+      const { data, error } = await getMessagesForConversation(conversation.conversation_id);
       if (error) throw error;
       setMessages(data || []);
     } catch (err) {
@@ -61,20 +48,15 @@ export default function ConversationView({ dbUser, conversation }) {
     }
   };
 
-  const sendMessage = async () => {
+  const handleSend = async () => {
     if (!newMessage.trim()) return;
     setSending(true);
-
     try {
-      const { error } = await supabase
-        .from("messages")
-        .insert({
-          conversation_id: conversation.conversation_id,
-          sender_user_id: dbUser.user_id,
-          body: newMessage.trim(),
-          sent_at: new Date().toISOString(),
-        });
-
+      const { error } = await sendMessage({
+        conversationId: conversation.conversation_id,
+        senderUserId: dbUser.user_id,
+        body: newMessage.trim(),
+      });
       if (error) throw error;
       setNewMessage("");
     } catch (err) {
@@ -85,13 +67,7 @@ export default function ConversationView({ dbUser, conversation }) {
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-
+  if (!conversation?.conversation_id) return <div className="card p-3">Select a conversation.</div>;
   if (loading) return <div className="card p-3">Loading messages...</div>;
 
   return (
@@ -106,10 +82,7 @@ export default function ConversationView({ dbUser, conversation }) {
           messages.map(msg => {
             const isMe = msg.sender_user_id === dbUser.user_id;
             return (
-              <div
-                key={msg.message_id}
-                className={`d-flex ${isMe ? "justify-content-end" : "justify-content-start"}`}
-              >
+              <div key={msg.message_id} className={`d-flex ${isMe ? "justify-content-end" : "justify-content-start"}`}>
                 <div
                   className={`p-2 rounded-3 ${isMe ? "bg-primary text-white" : "bg-light"}`}
                   style={{ maxWidth: "70%" }}
@@ -120,8 +93,7 @@ export default function ConversationView({ dbUser, conversation }) {
                     </div>
                   )}
                   <div>{msg.body}</div>
-                  <div className={`small mt-1 ${isMe ? "text-white-50" : "text-muted"}`}
-                    style={{ fontSize: "11px" }}>
+                  <div className={`small mt-1 ${isMe ? "text-white-50" : "text-muted"}`} style={{ fontSize: "11px" }}>
                     {new Date(msg.sent_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </div>
                 </div>
@@ -140,13 +112,9 @@ export default function ConversationView({ dbUser, conversation }) {
           placeholder="Type a message... (Enter to send)"
           value={newMessage}
           onChange={e => setNewMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
         />
-        <button
-          className="btn btn-primary"
-          onClick={sendMessage}
-          disabled={sending || !newMessage.trim()}
-        >
+        <button className="btn btn-primary" onClick={handleSend} disabled={sending || !newMessage.trim()}>
           Send
         </button>
       </div>

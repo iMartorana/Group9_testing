@@ -1,12 +1,26 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../../supabaseconfig";
+import { useAuth0 } from "@auth0/auth0-react";
+import {
+  getUserByEmail,
+  getAllSkills,
+  getActiveListings,
+  createListing,
+  addSkillToListing,
+  createBookingRequest,
+  createConversation,
+  sendMessage,
+} from "../../services/supabaseapi";
 
 export default function JobListings() {
+  const { user } = useAuth0();
+  const [dbUser, setDbUser] = useState(null);
   const [listings, setListings] = useState([]);
   const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [applying, setApplying] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // Draft filters
+  // Filters
   const [skillFilter, setSkillFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [minPay, setMinPay] = useState("");
@@ -18,69 +32,45 @@ export default function JobListings() {
     skill: "", location: "", minPay: "", date: "", pricingType: ""
   });
 
+  // Create new job listing
+  const [newListing, setNewListing] = useState({
+    title: "", description: "", location_text: "", pricing_type: "hourly", price_amount: "", selectedSkills: []
+  });
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const { data: listingData, error: listingError } = await supabase
-          .from("listings")
-          .select(`
-            listing_id,
-            title,
-            description,
-            location_text,
-            pricing_type,
-            price_amount,
-            created_at,
-            status,
-            users!listings_student_id_fkey (
-              first_name,
-              last_name
-            ),
-            listingsskills (
-              skills (
-                skill_id,
-                name
-              )
-            )
-          `)
-          .eq("status", "active");
+    if (user?.email) fetchData();
+  }, [user]);
 
-        if (listingError) throw listingError;
-        setListings(listingData || []);
+  const fetchData = async () => {
+    try {
+      const { data: userData, error: userError } = await getUserByEmail(user.email);
+      if (userError) throw userError;
+      setDbUser(userData);
 
-        const { data: skillData, error: skillError } = await supabase
-          .from("skills")
-          .select("skill_id, name")
-          .eq("is_active", true);
+      await fetchListings();
 
-        if (skillError) throw skillError;
-        setSkills(skillData || []);
-      } catch (err) {
-        console.error("Failed to fetch listings:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      const { data: skillData, error: skillError } = await getAllSkills();
+      if (skillError) throw skillError;
+      setSkills(skillData || []);
+    } catch (err) {
+      console.error("Failed to fetch data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchData();
-  }, []);
+  const fetchListings = async () => {
+    const { data, error } = await getActiveListings();
+    if (error) throw error;
+    setListings(data || []);
+  };
 
   const handleApplyFilters = () => {
-    setApplied({
-      skill: skillFilter,
-      location: locationFilter,
-      minPay,
-      date: dateFilter,
-      pricingType,
-    });
+    setApplied({ skill: skillFilter, location: locationFilter, minPay, date: dateFilter, pricingType });
   };
 
   const handleClearFilters = () => {
-    setSkillFilter("");
-    setLocationFilter("");
-    setMinPay("");
-    setDateFilter("");
-    setPricingType("");
+    setSkillFilter(""); setLocationFilter(""); setMinPay(""); setDateFilter(""); setPricingType("");
     setApplied({ skill: "", location: "", minPay: "", date: "", pricingType: "" });
   };
 
@@ -94,29 +84,94 @@ export default function JobListings() {
     return true;
   });
 
-  const applyForListing = async (listing_id) => {
+  const applyForListing = async (listing) => {
+    if (!dbUser) return
+    setApplying(listing.listing_id);
     try {
-      const { error } = await supabase
-        .from("bookingrequests")
-        .insert({
-          listing_id,
-          requested_start_at: new Date().toISOString(),
-          requested_end_at: new Date().toISOString(),
-          status: "pending",
+      const now = new Date().toISOString();
+      const { error } = await createBookingRequest({
+          customer_id: dbUser.user_id,
+          listing_id: listing.listing_id,
+          requested_start_at: now,
+          requested_end_at: now,
         });
       if (error) throw error;
       alert("Application submitted!");
     } catch (err) {
       console.error("Failed to apply:", err);
       alert("Failed to submit application.");
+    } finally {
+      setApplying(null);
     }
+  };
+
+  const messageAboutListing = async (listing) => {
+    if (!dbUser) return;
+    const recipientId = listing.users?.user_id;
+    if (!recipientId) return alert("Cannot message: listing has no associated user.");
+    try {
+      const { data: convo, error: convoError } = await createConversation({
+        initiatorUserId: dbUser.user_id,
+        recipientUserId: recipientId,
+      });
+      if (convoError) throw convoError;
+      const { error: msgError } = await sendMessage({
+          conversationId: convo.conversation_id,
+          senderUserId: dbUser.user_id,
+          body: `Hi, I'm interested in your job listing: "${listing.title}". Can we discuss further?`,
+        });
+      if (msgError) throw msgError;
+      alert("Message sent to the job poster!");
+    } catch (err) {
+      console.error("Failed to message:", err);
+      alert("Failed to send message.");
+    }
+  };
+
+  const handleCreateListing = async () => {
+    if (!newListing.title || !newListing.price_amount) return alert("Please fill in title and price.");
+    try {
+      const { data: created, error: listingError } = await createListing({
+        student_id: dbUser.user_id,
+        title: newListing.title,
+        description: newListing.description || null,
+        location_text: newListing.location_text || null,
+        pricing_type: newListing.pricing_type,
+        price_amount: Number(newListing.price_amount),
+      });
+      if (listingError) throw listingError;
+
+      for (const skill_id of newListing.selectedSkills) {
+        await addSkillToListing(created.listing_id, skill_id);
+      }
+
+      alert("Listing created!");
+      setShowCreateModal(false);
+      setNewListing({ title: "", description: "", location_text: "", pricing_type: "hourly", price_amount: "", selectedSkills: [] });
+      await fetchListings();
+    } catch (err) {
+      console.error("Failed to create listing:", err);
+      alert("Failed to create listing.");
+    }
+  };
+
+  const toggleSkill = (skill_id) => {
+    setNewListing(prev => ({
+      ...prev,
+      selectedSkills: prev.selectedSkills.includes(skill_id)
+        ? prev.selectedSkills.filter(id => id !== skill_id)
+        : [...prev.selectedSkills, skill_id]
+    }));
   };
 
   if (loading) return <div className="container py-4">Loading listings...</div>;
 
   return (
     <>
-      <h2 className="mb-4">Available Jobs</h2>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2 className="mb-4">Available Jobs</h2>
+        <button className="btn btn-success" onClick={() => setShowCreateModal(true)}>+ Post a Job</button>
+      </div>
 
       {/* Filters */}
       <div className="card mb-4">
@@ -125,64 +180,34 @@ export default function JobListings() {
           <div className="row g-3">
             <div className="col-md-4">
               <label className="form-label">Skill Required</label>
-              <select
-                className="form-select"
-                value={skillFilter}
-                onChange={e => setSkillFilter(e.target.value)}
-              >
+              <select className="form-select" value={skillFilter} onChange={e => setSkillFilter(e.target.value)}>
                 <option value="">All Skills</option>
-                {skills.map(s => (
-                  <option key={s.skill_id} value={s.name}>{s.name}</option>
-                ))}
+                {skills.map(s => (<option key={s.skill_id} value={s.name}>{s.name}</option>))}
               </select>
             </div>
             <div className="col-md-4">
               <label className="form-label">Location</label>
-              <input
-                className="form-control"
-                placeholder="e.g. Milwaukee"
-                value={locationFilter}
-                onChange={e => setLocationFilter(e.target.value)}
-              />
+              <input className="form-control" placeholder="e.g. Milwaukee" value={locationFilter} onChange={e => setLocationFilter(e.target.value)} />
             </div>
             <div className="col-md-4">
               <label className="form-label">Minimum Pay ($)</label>
-              <input
-                className="form-control"
-                type="number"
-                placeholder="e.g. 20"
-                value={minPay}
-                onChange={e => setMinPay(e.target.value)}
-              />
+              <input className="form-control" type="number" placeholder="e.g. 20" value={minPay} onChange={e => setMinPay(e.target.value)} />
             </div>
             <div className="col-md-4">
               <label className="form-label">Posted After</label>
-              <input
-                className="form-control"
-                type="date"
-                value={dateFilter}
-                onChange={e => setDateFilter(e.target.value)}
-              />
+              <input className="form-control" type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
             </div>
             <div className="col-md-4">
               <label className="form-label">Pricing Type</label>
-              <select
-                className="form-select"
-                value={pricingType}
-                onChange={e => setPricingType(e.target.value)}
-              >
+              <select className="form-select" value={pricingType} onChange={e => setPricingType(e.target.value)} >
                 <option value="">Any</option>
                 <option value="hourly">Hourly</option>
                 <option value="fixed">Fixed</option>
               </select>
             </div>
             <div className="col-md-4 d-flex align-items-end gap-2">
-              <button className="btn btn-primary w-100" onClick={handleApplyFilters}>
-                Apply Filters
-              </button>
-              <button className="btn btn-outline-secondary w-100" onClick={handleClearFilters}>
-                Clear
-              </button>
+              <button className="btn btn-primary w-100" onClick={handleApplyFilters}>Apply Filters</button>
+              <button className="btn btn-outline-secondary w-100" onClick={handleClearFilters}>Clear</button>
             </div>
           </div>
         </div>
@@ -203,35 +228,127 @@ export default function JobListings() {
                   <p className="text-muted small mb-1">
                     Posted by {listing.users?.first_name} {listing.users?.last_name}
                   </p>
-                  {listing.description && (
-                    <p className="small mb-2">{listing.description}</p>
-                  )}
+                  {listing.description && <p className="small mb-2">{listing.description}</p>}
                   <p className="text-muted mb-1">Location: {listing.location_text || "Remote"}</p>
-                  <p className="text-muted mb-1">
-                    Rate: ${listing.price_amount} ({listing.pricing_type})
-                  </p>
-                  <p className="text-muted mb-2">
-                    Date: {new Date(listing.created_at).toLocaleDateString()}
-                  </p>
+                  <p className="text-muted mb-1">Rate: ${listing.price_amount} ({listing.pricing_type})</p>
+                  <p className="text-muted mb-2">Date: {new Date(listing.created_at).toLocaleDateString()}</p>
                   <div>
                     {listing.listingsskills?.map(ls => (
-                      <span key={ls.skills?.skill_id} className="badge bg-primary me-1">
-                        {ls.skills?.name}
-                      </span>
+                      <span key={ls.skills?.skill_id} className="badge bg-primary me-1">{ls.skills?.name}</span>
                     ))}
                   </div>
                 </div>
-                <div className="card-footer">
+                <div className="card-footer d-flex gap-2">
                   <button
-                    className="btn btn-primary btn-sm w-100"
-                    onClick={() => applyForListing(listing.listing_id)}
+                    className="btn btn-primary btn-sm flex-fill"
+                    disabled={applying === listing.listing_id}
+                    onClick={() => applyForListing(listing)}
                   >
-                    Apply
+                    {applying === listing.listing_id ? "Applying..." : "Apply"}
+                  </button>
+                  <button
+                    className="btn btn-outline-secondary btn-sm flex-fill"
+                    onClick={() => messageAboutListing(listing)}
+                  >
+                    Message
                   </button>
                 </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Create Listing Modal */}
+      {showCreateModal && (
+        <div className="modal fade show" style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="modal-dialog modal-dialog-centered modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Post a New Job</h5>
+                <button type="button" className="btn-close" onClick={() => setShowCreateModal(false)} />
+              </div>
+              <div className="modal-body">
+                <div className="row g-3">
+                  <div className="col-12">
+                    <label className="form-label">Title *</label>
+                    <input
+                      className="form-control"
+                      placeholder="e.g. React Developer Needed"
+                      value={newListing.title}
+                      onChange={e => setNewListing(prev => ({ ...prev, title: e.target.value }))}
+                    />
+                  </div>
+                  <div className="col-12">
+                    <label className="form-label">Description</label>
+                    <textarea
+                      className="form-control"
+                      rows={3}
+                      placeholder="Describe the job..."
+                      value={newListing.description}
+                      onChange={e => setNewListing(prev => ({ ...prev, description: e.target.value }))}
+                    />
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label">Location</label>
+                    <input
+                      className="form-control"
+                      placeholder="e.g. Milwaukee, WI or Remote"
+                      value={newListing.location_text}
+                      onChange={e => setNewListing(prev => ({ ...prev, location_text: e.target.value }))}
+                    />
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label">Pricing Type *</label>
+                    <select
+                      className="form-select"
+                      value={newListing.pricing_type}
+                      onChange={e => setNewListing(prev => ({ ...prev, pricing_type: e.target.value }))}
+                    >
+                      <option value="hourly">Hourly</option>
+                      <option value="fixed">Fixed</option>
+                    </select>
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label">Price ($) *</label>
+                    <input
+                      className="form-control"
+                      type="number"
+                      placeholder="e.g. 25"
+                      value={newListing.price_amount}
+                      onChange={e => setNewListing(prev => ({ ...prev, price_amount: e.target.value }))}
+                    />
+                  </div>
+                  <div className="col-12">
+                    <label className="form-label">Skills Required</label>
+                    <div className="d-flex flex-wrap gap-2">
+                      {skills.map(s => (
+                        <div key={s.skill_id}>
+                          <input
+                            type="checkbox"
+                            className="btn-check"
+                            id={`skill-${s.skill_id}`}
+                            checked={newListing.selectedSkills.includes(s.skill_id)}
+                            onChange={() => toggleSkill(s.skill_id)}
+                          />
+                          <label
+                            className={`btn btn-sm ${newListing.selectedSkills.includes(s.skill_id) ? "btn-primary" : "btn-outline-primary"}`}
+                            htmlFor={`skill-${s.skill_id}`}
+                          >
+                            {s.name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-outline-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
+                <button className="btn btn-success" onClick={handleCreateListing}>Post Job</button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </>

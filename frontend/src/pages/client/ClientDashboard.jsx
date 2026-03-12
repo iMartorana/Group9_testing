@@ -25,7 +25,7 @@ export default function ClientDashboard() {
           <div className="row align-items-center g-4">
             <div className="col-md-8">
               <h1 className="display-6 fw-bold mb-2">
-                Welcome back, {profile?.name || user?.given_name || user?.name || "Client"}
+                Welcome back, { user?.name || "Client"}
               </h1>
               <p className="text-muted mb-0">
                 Find student talent, manage payments, leave reviews, and keep your hiring process organized in one place.

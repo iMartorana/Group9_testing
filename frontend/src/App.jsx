@@ -30,28 +30,29 @@ function RequireAuth({ children }) {
 export default function App() {
   const { error, isAuthenticated, isLoading, user } = useAuth0();
 
-  useEffect(() => {
-    const syncUser = async () => {
-      if (isLoading || !isAuthenticated || !user?.email) return;
+ useEffect(() => {
+  const syncUser = async () => {
+    if (isLoading || !isAuthenticated || !user?.email) return;
 
-      const existingUser = await getUserByEmail(user.email);
+    const existingUser = await getUserByEmail(user.email);
+    const savedRole = localStorage.getItem("signup_role");
 
-      if (!existingUser) {
-        const role = localStorage.getItem("signup_role") || "client";
+    console.log("signup_role from localStorage:", savedRole);
 
-        await createUser({
-          email: user.email,
-          first_name: user.first_name || "",
-          last_name: user.last_name || "",
-          role: role
-        });
+    if (!existingUser) {
+      await createUser({
+        email: user.email,
+        first_name: user.given_name || "",
+        last_name: user.family_name || "",
+        role: savedRole || "client",
+      });
+    }
 
-        localStorage.removeItem("signup_role");
-      }
-    };
+    localStorage.removeItem("signup_role");
+  };
 
-    syncUser();
-  }, [user, isAuthenticated, isLoading]);
+  syncUser();
+}, [user, isAuthenticated, isLoading]);
 
   return (
     <>

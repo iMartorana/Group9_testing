@@ -1,7 +1,17 @@
 import { useState, useEffect } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import { supabase } from "../../supabaseconfig";
+import {
+  getUserByEmail,
+  getAllSkills,
+  createBookingRequest,
+  createConversation,
+  sendMessage,
+} from "../../services/supabaseapi";
 
 export default function SkillListings() {
+  const { user } = useAuth0();
+  const [dbUser, setDbUser] = useState(null);
   const [students, setStudents] = useState([]);
   const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,114 +28,67 @@ export default function SkillListings() {
   });
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch students with their listings, skills, and availability
-        const { data: studentData, error: studentError } = await supabase
-          .from("users")
-          .select(`
-            user_id,
-            first_name,
-            last_name,
-            bio,
-            listings (
-              listing_id,
-              title,
-              price_amount,
-              pricing_type,
-              location_text,
-              status,
-              listingsskills (
-                skills (
-                  skill_id,
-                  name
-                )
-              )
-            ),
-            availabilityslots (
-              slot_id,
-              start_at,
-              end_at,
-              status
-            )
-          `)
-          .eq("role", "student");
+    if (user?.email) fetchData();
+  }, [user]);
 
-        if (studentError) throw studentError;
+  const fetchData = async () => {
+    try {
+      const { data: userData, error: userError } = await getUserByEmail(user.email);
+      if (userError) throw userError;
+      setDbUser(userData);
 
-        // Only show students with at least one active listing
-        const activeStudents = (studentData || []).filter(s =>
-          s.listings?.some(l => l.status === "active")
-        );
-        setStudents(activeStudents);
+      // Only show students with at least one active listing
+      const { data: studentData, error: studentError } = await supabase
+        .from("users")
+        .select(`
+          user_id, first_name, last_name, bio,
+          studentskills ( proficiency, skills ( skill_id, name ) ),
+          listings ( listing_id, title, price_amount, pricing_type, location_text, status ),
+          availabilityslots ( slot_id, start_at, end_at, status )
+        `)
+        .eq("role", "student");
+      if (studentError) throw studentError;
+      setStudents((studentData || []).filter(s => s.listings?.some(l => l.status === "active")));
 
-        // Fetch all active skills for filter dropdown
-        const { data: skillData, error: skillError } = await supabase
-          .from("skills")
-          .select("skill_id, name")
-          .eq("is_active", true);
-
-        if (skillError) throw skillError;
-        setSkills(skillData || []);
-      } catch (err) {
-        console.error("Failed to fetch students:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  // Helper: get all unique skills for a student across their listings
-  const getStudentSkills = (student) => {
-    const allSkills = student.listings?.flatMap(l =>
-      l.listingsskills?.map(ls => ls.skills) ?? []
-    ) ?? [];
-    return [...new Map(allSkills.map(s => [s?.skill_id, s])).values()].filter(Boolean);
-  };
-
-  // Helper: get lowest price across active listings
-  const getMinPrice = (student) => {
-    const prices = student.listings
-      ?.filter(l => l.status === "active")
-      .map(l => l.price_amount) ?? [];
-    return prices.length ? Math.min(...prices) : null;
-  };
-
-  // Helper: get available days from availability slots
-  const getAvailability = (student) => {
-    const slots = student.availabilityslots?.filter(s => s.status === "available") ?? [];
-    if (!slots.length) return "Not listed";
-    const days = slots.map(s =>
-      new Date(s.start_at).toLocaleDateString("en-US", { weekday: "long" })
-    );
-    return [...new Set(days)].slice(0, 3).join(", ");
+      // Fetch all active skills for filter dropdown
+      const { data: skillData, error: skillError } = await getAllSkills();
+      if (skillError) throw skillError;
+      setSkills(skillData || []);
+    } catch (err) {
+      console.error("Failed to fetch data:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleApplyFilters = () => {
-    setApplied({
-      skill: skillFilter,
-      maxSalary,
-      location: locationFilter,
-      availability: availabilityFilter,
-    });
+    setApplied({ skill: skillFilter, maxSalary, location: locationFilter, availability: availabilityFilter, });
   };
 
   const handleClearFilters = () => {
-    setSkillFilter("");
-    setMaxSalary("");
-    setLocationFilter("");
-    setAvailabilityFilter("");
+    setSkillFilter(""); setMaxSalary(""); setLocationFilter(""); setAvailabilityFilter("");
     setApplied({ skill: "", maxSalary: "", location: "", availability: "" });
   };
 
-  const filtered = students.filter(student => {
-    const studentSkillNames = getStudentSkills(student).map(s => s.name);
-    const minPrice = getMinPrice(student);
+  const getStudentSkills = (student) => student.studentskills?.map(ss => ss.skills).filter(Boolean) ?? [];
 
-    if (applied.skill && !studentSkillNames.includes(applied.skill)) return false;
-    if (applied.maxSalary && minPrice > Number(applied.maxSalary)) return false;
+  const getMinPrice = (student) => {
+    const prices = student.listings?.filter(l => l.status === "active").map(l => l.price_amount) ?? [];
+    return prices.length ? Math.min(...prices) : null;
+  };
+
+  const getAvailableDays = (student) => {
+    const slots = student.availabilityslots?.filter(s => s.status === "available") ?? [];
+    if (!slots.length) return "Not listed";
+    const days = slots.map(s => new Date(s.start_at).toLocaleDateString("en-US", { weekday: "long" }));
+    return [...new Set(days)].slice(0, 3).join(", ");
+  };
+
+  const filtered = students.filter(student => {
+    const skillNames = getStudentSkills(student).map(s => s.name);
+    const minPrice = getMinPrice(student);
+    if (applied.skill && !skillNames.includes(applied.skill)) return false;
+    if (applied.maxSalary && minPrice !== null && minPrice > Number(applied.maxSalary)) return false;
     if (applied.location) {
       const hasLocation = student.listings?.some(l =>
         l.location_text?.toLowerCase().includes(applied.location.toLowerCase())
@@ -133,24 +96,49 @@ export default function SkillListings() {
       if (!hasLocation) return false;
     }
     if (applied.availability) {
-      const hasAvailability = student.availabilityslots?.some(s =>
-        s.status === applied.availability
-      );
-      if (!hasAvailability) return false;
+      if (!student.availabilityslots?.some(s => s.status === applied.availability)) return false;
     }
     return true;
   });
 
-  const contactStudent = async (student) => {
+  const messageStudent = async (student) => {
+    if (!dbUser) return;
     try {
-      const { error } = await supabase
-        .from("conversations")
-        .insert({ request_id: null, booking_id: null });
-      if (error) throw error;
-      alert(`Contact request sent to ${student.first_name}!`);
+      const { data: convo, error: convoError } = await createConversation({
+        initiatorUserId: dbUser.user_id,
+        recipientUserId: student.user_id,
+      });
+      if (convoError) throw convoError;
+      const { error: msgError } = await sendMessage({
+        conversationId: convo.conversation_id,
+        senderUserId: dbUser.user_id,
+        body: `Hi ${student.first_name}, I'm interested in hiring you for a job. Can we discuss your availability?`,
+      });
+      if (msgError) throw msgError;
+      alert(`Message sent to ${student.first_name}!`);
     } catch (err) {
-      console.error("Failed to contact student:", err);
-      alert("Failed to send contact request.");
+      console.error("Failed to message:", err);
+      alert("Failed to send message.");
+    }
+  };
+
+  const requestBooking = async (student) => {
+    if (!dbUser) return;
+    const activeListing = student.listings?.find(l => l.status === "active");
+    if (!activeListing) return alert("No active listings for this student.");
+    try {
+      const now = new Date().toISOString();
+      const { error } = await createBookingRequest({
+        customer_id: dbUser.user_id,
+        listing_id: activeListing.listing_id,
+        requested_start_at: now,
+        requested_end_at: now,
+      });
+      if (error) throw error;
+      alert(`Booking request sent to ${student.first_name}!`);
+    } catch (err) {
+      console.error("Failed to request booking:", err);
+      alert("Failed to send booking request.");
     }
   };
 
@@ -167,55 +155,30 @@ export default function SkillListings() {
           <div className="row g-3">
             <div className="col-md-3">
               <label className="form-label">Skill Type</label>
-              <select
-                className="form-select"
-                value={skillFilter}
-                onChange={e => setSkillFilter(e.target.value)}
-              >
+              <select className="form-select" value={skillFilter} onChange={e => setSkillFilter(e.target.value)}>
                 <option value="">All Skills</option>
-                {skills.map(s => (
-                  <option key={s.skill_id} value={s.name}>{s.name}</option>
-                ))}
+                {skills.map(s => (<option key={s.skill_id} value={s.name}>{s.name}</option>))}
               </select>
             </div>
             <div className="col-md-3">
               <label className="form-label">Max Rate ($/hr)</label>
-              <input
-                className="form-control"
-                type="number"
-                placeholder="e.g. 25"
-                value={maxSalary}
-                onChange={e => setMaxSalary(e.target.value)}
-              />
+              <input className="form-control" type="number" placeholder="e.g. 25" value={maxSalary} onChange={e => setMaxSalary(e.target.value)} />
             </div>
             <div className="col-md-3">
               <label className="form-label">Location</label>
-              <input
-                className="form-control"
-                placeholder="e.g. Milwaukee"
-                value={locationFilter}
-                onChange={e => setLocationFilter(e.target.value)}
-              />
+              <input className="form-control" placeholder="e.g. Milwaukee" value={locationFilter} onChange={e => setLocationFilter(e.target.value)} />
             </div>
             <div className="col-md-3">
               <label className="form-label">Availability</label>
-              <select
-                className="form-select"
-                value={availabilityFilter}
-                onChange={e => setAvailabilityFilter(e.target.value)}
-              >
+              <select className="form-select" value={availabilityFilter} onChange={e => setAvailabilityFilter(e.target.value)}>
                 <option value="">Any</option>
                 <option value="available">Available</option>
                 <option value="booked">Booked</option>
               </select>
             </div>
             <div className="col-12 d-flex gap-2">
-              <button className="btn btn-primary" onClick={handleApplyFilters}>
-                Apply Filters
-              </button>
-              <button className="btn btn-outline-secondary" onClick={handleClearFilters}>
-                Clear
-              </button>
+              <button className="btn btn-primary" onClick={handleApplyFilters}>Apply Filters</button>
+              <button className="btn btn-outline-secondary" onClick={handleClearFilters}>Clear</button>
             </div>
           </div>
         </div>
@@ -229,42 +192,42 @@ export default function SkillListings() {
           {filtered.map(student => {
             const studentSkills = getStudentSkills(student);
             const minPrice = getMinPrice(student);
-            const availability = getAvailability(student);
+            const availability = getAvailableDays(student);
             const activeListings = student.listings?.filter(l => l.status === "active") ?? [];
 
             return (
               <div className="col-md-6" key={student.user_id}>
                 <div className="card h-100 shadow-sm">
                   <div className="card-header">
-                    <h5 className="card-title mb-0">
-                      {student.first_name} {student.last_name}
-                    </h5>
+                    <h5 className="card-title mb-0">{student.first_name} {student.last_name}</h5>
                   </div>
                   <div className="card-body">
-                    {student.bio && (
-                      <p className="small text-muted mb-2">{student.bio}</p>
-                    )}
-                    {minPrice !== null && (
-                      <p className="text-muted mb-1">Desired Salary: ${minPrice}/hr</p>
-                    )}
+                    {student.bio && <p className="small text-muted mb-2">{student.bio}</p>}
+                    {minPrice !== null && <p className="text-muted mb-1">Desired Salary: ${minPrice}/hr</p>}
                     <p className="text-muted mb-1">Availability: {availability}</p>
                     <p className="text-muted mb-2">
                       Active Listings: {activeListings.length} active listing{activeListings.length !== 1 ? "s" : ""}
                     </p>
                     <div>
                       {studentSkills.map(s => (
-                        <span key={s.skill_id} className="badge bg-primary me-1 mb-1">
+                        <span key={s.skill_id} className="badge bg-success me-1 mb-1">
                           {s.name}
                         </span>
                       ))}
                     </div>
                   </div>
-                  <div className="card-footer">
+                  <div className="card-footer d-flex gap-2">
                     <button
-                      className="btn btn-primary btn-sm w-100"
-                      onClick={() => contactStudent(student)}
+                      className="btn btn-success btn-sm flex-fill"
+                      onClick={() => requestBooking(student)}
                     >
-                      Contact Student
+                      Hire
+                    </button>
+                    <button
+                      className="btn btn-outline-primary btn-sm flex-fill"
+                      onClick={() => messageStudent(student)}
+                    >
+                      Message
                     </button>
                   </div>
                 </div>

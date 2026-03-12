@@ -1,3 +1,4 @@
+/* DEPRECATED
 const Database = require("better-sqlite3");
 
 const dbFile = process.env.DB_FILE || "app.db";
@@ -20,4 +21,4 @@ CREATE TABLE IF NOT EXISTS jobs (
 );
 `);
 
-module.exports = db;
+module.exports = db;*/

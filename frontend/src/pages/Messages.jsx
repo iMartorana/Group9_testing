@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
-import { supabase } from "../supabaseconfig";
+import { getUserByEmail } from "../services/supabaseapi";
 import ConversationList from "../components/Messages/ConversationList";
 import ConversationView from "../components/Messages/ConversationView";
 import NewConversationModal from "../components/Messages/NewConversationModal";
@@ -16,12 +16,7 @@ export default function Messages() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const { data, error } = await supabase
-          .from("users")
-          .select("user_id, first_name, last_name, email, role")
-          .eq("email", user.email)
-          .single();
-
+        const { data, error } = await getUserByEmail(user.email);
         if (error) throw error;
         setDbUser(data);
       } catch (err) {
@@ -59,11 +54,8 @@ export default function Messages() {
 
           {/* Message view on the right */}
           <div className="col-md-8">
-            {selectedConversation ? (
-              <ConversationView
-                dbUser={dbUser}
-                conversation={selectedConversation}
-              />
+            {selectedConversation?.conversation_id ? (
+              <ConversationView dbUser={dbUser} conversation={selectedConversation} />
             ) : (
               <div className="card h-100">
                 <div className="card-body d-flex align-items-center justify-content-center text-muted">
