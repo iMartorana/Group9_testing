@@ -32,7 +32,6 @@ export default function StudentDashboard() {
                 Manage your profile, explore job opportunities, track reviews, and stay ready for new client connections.
               </p>
             </div>
-
           
           </div>
         </div>

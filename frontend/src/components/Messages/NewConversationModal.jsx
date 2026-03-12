@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../../supabaseconfig";
+import { getAllUsers, createConversation, sendMessage } from "../../services/supabaseapi";
 
 export default function NewConversationModal({ dbUser, onClose, onCreated }) {
   const [users, setUsers] = useState([]);
@@ -11,13 +11,9 @@ export default function NewConversationModal({ dbUser, onClose, onCreated }) {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const { data, error } = await supabase
-          .from("users")
-          .select("user_id, first_name, last_name, role")
-          .neq("user_id", dbUser.user_id);
-
+        const { data, error } = await getAllUsers();
         if (error) throw error;
-        setUsers(data || []);
+        setUsers((data || []).filter(u => u.user_id !== dbUser.user_id));
       } catch (err) {
         console.error("Failed to fetch users:", err);
       } finally {
@@ -34,23 +30,19 @@ export default function NewConversationModal({ dbUser, onClose, onCreated }) {
 
     try {
       // Create conversation
-      const { data: convo, error: convoError } = await supabase
-        .from("conversations")
-        .insert({ request_id: null, booking_id: null })
-        .select()
-        .single();
-
+      const { data: convo, error: convoError } = await createConversation({
+        initiatorUserId: dbUser.user_id,
+        recipientUserId: parseInt(selectedUser),
+      });
       if (convoError) throw convoError;
+      if (!convo?.conversation_id) throw new Error("No conversation ID returned");
 
       // Send first message
-      const { error: msgError } = await supabase
-        .from("messages")
-        .insert({
-          conversation_id: convo.conversation_id,
-          sender_user_id: dbUser.user_id,
-          body: firstMessage.trim(),
-          sent_at: new Date().toISOString(),
-        });
+      const { error: msgError } = await sendMessage({
+        conversationId: convo.conversation_id,
+        senderUserId: dbUser.user_id,
+        body: firstMessage.trim(),
+      });
 
       if (msgError) throw msgError;
 
