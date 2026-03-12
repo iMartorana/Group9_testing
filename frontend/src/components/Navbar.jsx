@@ -1,6 +1,6 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import { Link, useLocation } from "react-router-dom";
-import { Button, Container, Navbar as BsNavbar } from "react-bootstrap";
+import { Button, ButtonGroup, Container, Navbar as BsNavbar } from "react-bootstrap";
 import { getRoleForEmail } from "../providers/roleStore";
 
 export default function Navbar() {
@@ -40,6 +40,15 @@ export default function Navbar() {
             <span className="small text-muted d-none d-md-inline">
               {user?.email || user?.name}
             </span>
+
+            <div className="d-flex gap-2 me-auto">
+            <ButtonGroup className="mb-2">
+                <Button className="btn" as={Link} to="/AdminDashboard">Home</Button>
+                <Button className="btn" as={Link} to="/Jobs">Jobs</Button>
+                <Button className="btn" as={Link} to="/Messages">Messages</Button>
+                <Button className="btn" as={Link} to="/Payment">Payment</Button>
+            </ButtonGroup>
+            </div>
 
             <Button as={Link} to="/profile" variant="primary" size="sm">
               Profile

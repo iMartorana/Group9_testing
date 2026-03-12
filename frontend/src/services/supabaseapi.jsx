@@ -27,23 +27,32 @@ supabase-js
 
   Table quick-reference
   ─────────────────────
-  users              – user_id, email, role, first_name, last_name, phone, bio
-  listings           – listing_id, student_id, title, description, status,
-                       location_text, pricing_type, price_amount
+  users              – user_id, email, role, first_name, last_name, phone, bio, created_at, updated_at
+  listings           – listing_id, student_id, title, description, status, location_text, pricing_type, price_amount, created_at, updated_at
   skills             – skill_id, name, is_active
   studentskills      – student_id, skill_id, proficiency, interest
   listingsskills     – listing_id, skill_id
   availabilityslots  – slot_id, student_id, start_at, end_at, status
-  bookingrequests    – request_id, customer_id, listing_id,
-                       requested_start_at, requested_end_at, note, status
-  bookings           – bookings_id, request_id, customer_id, listing_id,
-                       start_at, end_at, status, agreed_price_amount
-  reviews            – id, student_email, client_email, rating, review_text
+  bookingrequests    – request_id, customer_id, listing_id, requested_start_at, requested_end_at, note, status, created_at, updated_at
+  bookings           – bookings_id, request_id, customer_id, listing_id, start_at, end_at, status, agreed_price_amount, created_at, updated_at
+  conversations      – conversation_id, booking_id, request_id, created_at, recipient_user_id, initiator_user_id
+  messages           – message_id, conversation_id, sender_user_id, body, sent_at, read_at
+  notifications      – notification_id, user_id, type, channel, status, created_at
+  payments           – payment_id, booking_id, customer_id, student_id, amount, status, provider, provider_payment_id, created_at, paid_at
+  reviews            – review_id, booking_id, reviewer_user_id, reviewee_user_id, rating, comment, created_at
 */
 
 // ─────────────────────────────────────────────────
 // USERS
 // ─────────────────────────────────────────────────
+
+/** Get all users. Used for admin dashboard and messaging user lists. */
+export async function getAllUsers() {
+  return await supabase
+    .from("users")
+    .select("user_id, first_name, last_name, role")
+    .order("first_name");
+}
 
 /** Fetch a single user by email. Used after Auth0 login to load profile + role. */
 export async function getUserByEmail(email) {
@@ -173,9 +182,9 @@ export async function getActiveListings() {
   return await supabase
     .from("listings")
     .select(`
-      listing_id, title, description, status,
-      location_text, pricing_type, price_amount, created_at,
-      users(user_id, first_name, last_name, email)
+      listing_id, title, description, status, location_text, pricing_type, price_amount, created_at, student_id, 
+      users!listings_student_id_fkey(user_id, first_name, last_name), 
+      listingsskills(skills(skill_id, name))
     `)
     .eq("status", "active")
     .order("created_at", { ascending: false });
@@ -429,20 +438,29 @@ export async function updateBookingStatus(bookingId, status) {
 // ─────────────────────────────────────────────────
 
 /** Get reviews for a student (latest first). */
-export async function getReviewsForStudent(studentEmail) {
+export async function getReviewsForStudent(revieweeUserId) {
   return await supabase
     .from("reviews")
-    .select("id, student_email, client_email, rating, review_text, created_at")
-    .eq("student_email", studentEmail)
+    .select(`
+      review_id, 
+      rating, 
+      comment, 
+      created_at
+      users!reviews_reviewer_user_id_fkey (
+        first_name, 
+        last_name
+      )
+    `)
+    .eq("reviewee_user_id", revieweeUserId)
     .order("created_at", { ascending: false });
 }
 
 /** Get average rating + total count for a student. Returns { data: { avg, count } } */
-export async function getReviewSummary(studentEmail) {
+export async function getReviewSummary(revieweeUserId) {
   const { data, error } = await supabase
     .from("reviews")
     .select("rating")
-    .eq("student_email", studentEmail);
+    .eq("reviewee_user_id", revieweeUserId);
 
   if (error) return { data: null, error };
 
@@ -456,12 +474,12 @@ export async function getReviewSummary(studentEmail) {
  * Create or update a review.
  * A client can only leave one review per student (unique on student_email + client_email).
  */
-export async function upsertReview({ studentEmail, clientEmail, rating, reviewText }) {
+export async function upsertReview({ bookingId, reviewerUserId, revieweeUserId, rating, comment }) {
   return await supabase
     .from("reviews")
     .upsert(
-      { student_email: studentEmail, client_email: clientEmail, rating, review_text: reviewText },
-      { onConflict: "student_email,client_email" }
+      { booking_id: bookingId, reviewer_user_id: reviewerUserId, reviewee_user_id: revieweeUserId, rating, comment },
+      { onConflict: "booking_id,reviewer_user_id" }
     )
     .select()
     .single();
@@ -480,8 +498,7 @@ Only returns the number from numReturn. Calls can double this
 export async function getJobsBySkillsRatings(skills, numReturn) {
   return await supabase
   .from('listings')
-  .select(
-    `
+  .select(`
     listing_id,
     student_id,
     title,
@@ -489,18 +506,13 @@ export async function getJobsBySkillsRatings(skills, numReturn) {
     status,
     location_text,
     pricing_type,
-    pricing_amount,
+    price_amount,
     updated_at,
-    ...reviews!inner(
-      avg_rating:rating.avg()
-    ),
-    ...users!inner(),
-    ...listingsskills!inner()
-    `,
-  )
+    users!inner(first_name, last_name),
+    listingsskills!inner(skill_id)
+  `)
   .eq('status', 'active')
   .in('listingsskills.skill_id', skills)
-  .order('avg_rating')
   .limit(numReturn)
 }
 
@@ -513,8 +525,7 @@ Only returns the number from numReturn. Calls can double this
 export async function getJobsBySkillsTime(skills, numReturn){
   return await supabase
   .from('listings')
-  .select(
-    `
+  .select(`
     listing_id,
     student_id,
     title,
@@ -522,17 +533,73 @@ export async function getJobsBySkillsTime(skills, numReturn){
     status,
     location_text,
     pricing_type,
-    pricing_amount,
+    price_amount,
     updated_at,
-    ...reviews!inner(
-      avg_rating:rating.avg()
-    ),
-    ...users!inner(),
-    ...listingsskills!inner()
-    `,
-  )
+    users!inner(first_name, last_name),
+    listingsskills!inner(skill_id)
+  `)
   .eq('status', 'active')
   .in('listingsskills.skill_id', skills)
-  .order('updated_at')
+  .order('updated_at', { ascending: false })
   .limit(numReturn)
+}
+
+// ─────────────────────────────────────────────────
+// Messages / Conversations
+// ─────────────────────────────────────────────────
+
+export async function createConversation({ initiatorUserId, recipientUserId }) {
+  return await supabase
+    .from("conversations")
+    .insert({
+      request_id: null, booking_id: null,
+      initiator_user_id: initiatorUserId,
+      recipient_user_id: recipientUserId,
+    })
+    .select("conversation_id, created_at, initiator_user_id, recipient_user_id")
+    .single();
+}
+
+export async function sendMessage({ conversationId, senderUserId, body }) {
+  return await supabase
+    .from("messages")
+    .insert({
+      conversation_id: conversationId,
+      sender_user_id: senderUserId,
+      body,
+      sent_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+}
+
+export async function getMessagesForConversation(conversationId) {
+  return await supabase
+    .from("messages")
+    .select(`
+      message_id,
+      body,
+      sent_at,
+      sender_user_id,
+      users!messages_sender_user_id_fkey (
+        first_name,
+        last_name
+      )
+    `)
+    .eq("conversation_id", conversationId)
+    .order("sent_at", { ascending: true });
+}
+
+export async function getConversationsForUser(userId) {
+  return await supabase
+    .from("conversations")
+    .select(`
+      conversation_id, created_at,
+      initiator_user_id, recipient_user_id,
+      initiator:users!conversations_initiator_user_id_fkey(user_id, first_name, last_name),
+      recipient:users!conversations_recipient_user_id_fkey(user_id, first_name, last_name),
+      messages(message_id, body, sent_at, sender_user_id)
+    `)
+    .or(`initiator_user_id.eq.${userId},recipient_user_id.eq.${userId}`)
+    .order("created_at", { ascending: false });
 }

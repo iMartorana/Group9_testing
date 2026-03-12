@@ -1,7 +1,15 @@
 import { useState, useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
-import { supabase } from "../../supabaseconfig";
-import { getJobsBySkillsRatings }from "../../api/supabaseapi.jsx"
+import {
+  getUserByEmail,
+  getAllSkills,
+  getActiveListings,
+  createListing,
+  addSkillToListing,
+  createBookingRequest,
+  createConversation,
+  sendMessage,
+} from "../../services/supabaseapi";
 
 export default function JobListings() {
   const { user } = useAuth0();
@@ -30,73 +38,32 @@ export default function JobListings() {
   });
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        /*
-        const { data: listingData, error: listingError } = await supabase
-          .from("listings")
-          .select(`
-            listing_id,
-            title,
-            description,
-            location_text,
-            pricing_type,
-            price_amount,
-            created_at,
-            status,
-            users!listings_student_id_fkey (
-              first_name,
-              last_name
-            ),
-            listingsskills (
-              skills (
-                skill_id,
-                name
-              )
-            )
-          `)
-          .eq("status", "active");
+    if (user?.email) fetchData();
+  }, [user]);
 
   const fetchData = async () => {
     try {
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("user_id, role")
-        .eq("email", user.email)
-        .single();
+      const { data: userData, error: userError } = await getUserByEmail(user.email);
       if (userError) throw userError;
       setDbUser(userData);
 
       await fetchListings();
 
-        if (skillError) throw skillError;
-        setSkills(skillData || []);
-      } catch (err) {
-        console.error("Failed to fetch listings:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    */
-      const { data: listingData, error: listingError } = getJobsBySkillsRatings(skill, 5);
-      if (listingError) throw listingError;
-        setListings(listingData || []);
-        //There isn't actually a get individual skill function. May add one later
-        const { data: skillData, error: skillError } = await supabase
-          .from("skills")
-          .select("skill_id, name")
-          .eq("is_active", true);
-          if (skillError) throw skillError;
-        setSkills(skillData || []);
-      } catch (err) {
-        console.error("Failed to fetch listings:", err);
-      } finally {
-        setLoading(false);
-      }
-      };
-      
-    fetchData();
-  }, []);
+      const { data: skillData, error: skillError } = await getAllSkills();
+      if (skillError) throw skillError;
+      setSkills(skillData || []);
+    } catch (err) {
+      console.error("Failed to fetch data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchListings = async () => {
+    const { data, error } = await getActiveListings();
+    if (error) throw error;
+    setListings(data || []);
+  };
 
   const handleApplyFilters = () => {
     setApplied({ skill: skillFilter, location: locationFilter, minPay, date: dateFilter, pricingType });
@@ -122,14 +89,11 @@ export default function JobListings() {
     setApplying(listing.listing_id);
     try {
       const now = new Date().toISOString();
-      const { error } = await supabase
-        .from("bookingrequests")
-        .insert({
+      const { error } = await createBookingRequest({
           customer_id: dbUser.user_id,
           listing_id: listing.listing_id,
           requested_start_at: now,
           requested_end_at: now,
-          status: "pending",
         });
       if (error) throw error;
       alert("Application submitted!");
@@ -143,21 +107,18 @@ export default function JobListings() {
 
   const messageAboutListing = async (listing) => {
     if (!dbUser) return;
+    const recipientId = listing.users?.user_id;
+    if (!recipientId) return alert("Cannot message: listing has no associated user.");
     try {
-      const { data: convo, error: convoError } = await supabase
-        .from("conversations")
-        .insert({ request_id: null, booking_id: null })
-        .select()
-        .single();
+      const { data: convo, error: convoError } = await createConversation({
+        initiatorUserId: dbUser.user_id,
+        recipientUserId: recipientId,
+      });
       if (convoError) throw convoError;
-
-      const { error: msgError } = await supabase
-        .from("messages")
-        .insert({
-          conversation_id: convo.conversation_id,
-          sender_user_id: dbUser.user_id,
+      const { error: msgError } = await sendMessage({
+          conversationId: convo.conversation_id,
+          senderUserId: dbUser.user_id,
           body: `Hi, I'm interested in your job listing: "${listing.title}". Can we discuss further?`,
-          sent_at: new Date().toISOString(),
         });
       if (msgError) throw msgError;
       alert("Message sent to the job poster!");
@@ -168,35 +129,20 @@ export default function JobListings() {
   };
 
   const handleCreateListing = async () => {
-    if (!newListing.title || !newListing.price_amount) {
-      return alert("Please fill in title and price.");
-    }
+    if (!newListing.title || !newListing.price_amount) return alert("Please fill in title and price.");
     try {
-      const { data: created, error: listingError } = await supabase
-        .from("listings")
-        .insert({
-          student_id: dbUser.user_id,
-          title: newListing.title,
-          description: newListing.description || null,
-          location_text: newListing.location_text || null,
-          pricing_type: newListing.pricing_type,
-          price_amount: Number(newListing.price_amount),
-          status: "active",
-        })
-        .select()
-        .single();
+      const { data: created, error: listingError } = await createListing({
+        student_id: dbUser.user_id,
+        title: newListing.title,
+        description: newListing.description || null,
+        location_text: newListing.location_text || null,
+        pricing_type: newListing.pricing_type,
+        price_amount: Number(newListing.price_amount),
+      });
       if (listingError) throw listingError;
 
-      // Link selected skills
-      if (newListing.selectedSkills.length > 0) {
-        const skillRows = newListing.selectedSkills.map(skill_id => ({
-          listing_id: created.listing_id,
-          skill_id,
-        }));
-        const { error: skillError } = await supabase
-          .from("listingsskills")
-          .insert(skillRows);
-        if (skillError) throw skillError;
+      for (const skill_id of newListing.selectedSkills) {
+        await addSkillToListing(created.listing_id, skill_id);
       }
 
       alert("Listing created!");
@@ -224,9 +170,7 @@ export default function JobListings() {
     <>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2 className="mb-4">Available Jobs</h2>
-        <button className="btn btn-success" onClick={() => setShowCreateModal(true)}>
-          + Post a Job
-        </button>
+        <button className="btn btn-success" onClick={() => setShowCreateModal(true)}>+ Post a Job</button>
       </div>
 
       {/* Filters */}

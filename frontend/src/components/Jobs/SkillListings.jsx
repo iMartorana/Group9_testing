@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { supabase } from "../../supabaseconfig";
+import {
+  getUserByEmail,
+  getAllSkills,
+  createBookingRequest,
+  createConversation,
+  sendMessage,
+} from "../../services/supabaseapi";
 
 export default function SkillListings() {
   const { user } = useAuth0();
@@ -26,11 +33,7 @@ export default function SkillListings() {
 
   const fetchData = async () => {
     try {
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("user_id, role")
-        .eq("email", user.email)
-        .single();
+      const { data: userData, error: userError } = await getUserByEmail(user.email);
       if (userError) throw userError;
       setDbUser(userData);
 
@@ -39,29 +42,16 @@ export default function SkillListings() {
         .from("users")
         .select(`
           user_id, first_name, last_name, bio,
-          studentskills (
-            proficiency,
-            skills ( skill_id, name )
-          ),
-          listings (
-            listing_id, title, price_amount,
-            pricing_type, location_text, status
-          ),
-          availabilityslots (
-            slot_id, start_at, end_at, status
-          )
+          studentskills ( proficiency, skills ( skill_id, name ) ),
+          listings ( listing_id, title, price_amount, pricing_type, location_text, status ),
+          availabilityslots ( slot_id, start_at, end_at, status )
         `)
         .eq("role", "student");
       if (studentError) throw studentError;
-
       setStudents((studentData || []).filter(s => s.listings?.some(l => l.status === "active")));
 
       // Fetch all active skills for filter dropdown
-      const { data: skillData, error: skillError } = await supabase
-        .from("skills")
-        .select("skill_id, name")
-        .eq("is_active", true)
-        .order("name");
+      const { data: skillData, error: skillError } = await getAllSkills();
       if (skillError) throw skillError;
       setSkills(skillData || []);
     } catch (err) {
@@ -71,7 +61,7 @@ export default function SkillListings() {
     }
   };
 
-const handleApplyFilters = () => {
+  const handleApplyFilters = () => {
     setApplied({ skill: skillFilter, maxSalary, location: locationFilter, availability: availabilityFilter, });
   };
 
@@ -80,8 +70,7 @@ const handleApplyFilters = () => {
     setApplied({ skill: "", maxSalary: "", location: "", availability: "" });
   };
 
-  const getStudentSkills = (student) =>
-    student.studentskills?.map(ss => ss.skills).filter(Boolean) ?? [];
+  const getStudentSkills = (student) => student.studentskills?.map(ss => ss.skills).filter(Boolean) ?? [];
 
   const getMinPrice = (student) => {
     const prices = student.listings?.filter(l => l.status === "active").map(l => l.price_amount) ?? [];
@@ -107,8 +96,7 @@ const handleApplyFilters = () => {
       if (!hasLocation) return false;
     }
     if (applied.availability) {
-      const hasSlot = student.availabilityslots?.some(s => s.status === applied.availability);
-      if (!hasSlot) return false;
+      if (!student.availabilityslots?.some(s => s.status === applied.availability)) return false;
     }
     return true;
   });
@@ -116,21 +104,16 @@ const handleApplyFilters = () => {
   const messageStudent = async (student) => {
     if (!dbUser) return;
     try {
-      const { data: convo, error: convoError } = await supabase
-        .from("conversations")
-        .insert({ request_id: null, booking_id: null })
-        .select()
-        .single();
+      const { data: convo, error: convoError } = await createConversation({
+        initiatorUserId: dbUser.user_id,
+        recipientUserId: student.user_id,
+      });
       if (convoError) throw convoError;
-
-      const { error: msgError } = await supabase
-        .from("messages")
-        .insert({
-          conversation_id: convo.conversation_id,
-          sender_user_id: dbUser.user_id,
-          body: `Hi ${student.first_name}, I'm interested in hiring you for a job. Can we discuss your availability?`,
-          sent_at: new Date().toISOString(),
-        });
+      const { error: msgError } = await sendMessage({
+        conversationId: convo.conversation_id,
+        senderUserId: dbUser.user_id,
+        body: `Hi ${student.first_name}, I'm interested in hiring you for a job. Can we discuss your availability?`,
+      });
       if (msgError) throw msgError;
       alert(`Message sent to ${student.first_name}!`);
     } catch (err) {
@@ -143,18 +126,14 @@ const handleApplyFilters = () => {
     if (!dbUser) return;
     const activeListing = student.listings?.find(l => l.status === "active");
     if (!activeListing) return alert("No active listings for this student.");
-
     try {
       const now = new Date().toISOString();
-      const { error } = await supabase
-        .from("bookingrequests")
-        .insert({
-          customer_id: dbUser.user_id,
-          listing_id: activeListing.listing_id,
-          requested_start_at: now,
-          requested_end_at: now,
-          status: "pending",
-        });
+      const { error } = await createBookingRequest({
+        customer_id: dbUser.user_id,
+        listing_id: activeListing.listing_id,
+        requested_start_at: now,
+        requested_end_at: now,
+      });
       if (error) throw error;
       alert(`Booking request sent to ${student.first_name}!`);
     } catch (err) {
