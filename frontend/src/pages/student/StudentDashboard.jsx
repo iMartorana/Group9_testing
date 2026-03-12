@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Navbar from "../../components/Navbar";
 
+
 export default function StudentDashboard() {
   const { user } = useAuth0();
   const [profile, setProfile] = useState(null);
@@ -25,7 +26,7 @@ export default function StudentDashboard() {
           <div className="row align-items-center g-4">
             <div className="col-md-8">
               <h1 className="display-6 fw-bold mb-2">
-                Welcome back, {profile?.name || user?.given_name || user?.name || "Student"}
+                Welcome back, {profile?.name || user?.email || "Student"}
               </h1>
               <p className="text-muted mb-0">
                 Manage your profile, explore job opportunities, track reviews, and stay ready for new client connections.
