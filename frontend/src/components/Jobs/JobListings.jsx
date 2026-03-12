@@ -20,6 +20,11 @@ export default function JobListings() {
   const [applying, setApplying] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
+  // Message modal state
+  const [messageModal, setMessageModal] = useState({ open: false, listing: null });
+  const [messageText, setMessageText] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
+
   // Filters
   const [skillFilter, setSkillFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
@@ -105,10 +110,28 @@ export default function JobListings() {
     }
   };
 
-  const messageAboutListing = async (listing) => {
+  // Open the message modal with a pre-filled default message
+  const openMessageModal = (listing) => {
     if (!dbUser) return;
+    if (!listing.users?.user_id) return alert("Cannot message: listing has no associated user.");
+    const defaultMessage = `Hi, I'm interested in your job listing: "${listing.title}". Can we discuss further?`;
+    setMessageText(defaultMessage);
+    setMessageModal({ open: true, listing });
+  };
+ 
+  const closeMessageModal = () => {
+    setMessageModal({ open: false, listing: null });
+    setMessageText("");
+  };
+ 
+  // Send the (possibly edited) message
+  const handleSendMessage = async () => {
+    const { listing } = messageModal;
+    if (!listing || !dbUser) return;
     const recipientId = listing.users?.user_id;
     if (!recipientId) return alert("Cannot message: listing has no associated user.");
+ 
+    setSendingMessage(true);
     try {
       const { data: convo, error: convoError } = await createConversation({
         initiatorUserId: dbUser.user_id,
@@ -116,15 +139,18 @@ export default function JobListings() {
       });
       if (convoError) throw convoError;
       const { error: msgError } = await sendMessage({
-          conversationId: convo.conversation_id,
-          senderUserId: dbUser.user_id,
-          body: `Hi, I'm interested in your job listing: "${listing.title}". Can we discuss further?`,
-        });
+        conversationId: convo.conversation_id,
+        senderUserId: dbUser.user_id,
+        body: messageText.trim(),
+      });
       if (msgError) throw msgError;
+      closeMessageModal();
       alert("Message sent to the job poster!");
     } catch (err) {
       console.error("Failed to message:", err);
       alert("Failed to send message.");
+    } finally {
+      setSendingMessage(false);
     }
   };
 
@@ -248,7 +274,7 @@ export default function JobListings() {
                   </button>
                   <button
                     className="btn btn-outline-secondary btn-sm flex-fill"
-                    onClick={() => messageAboutListing(listing)}
+                    onClick={() => openMessageModal(listing)}
                   >
                     Message
                   </button>
@@ -256,6 +282,52 @@ export default function JobListings() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Message Modal */}
+      {messageModal.open && (
+        <div className="modal fade show" style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  Message Poster
+                  {messageModal.listing && (
+                    <span className="text-muted fw-normal fs-6 ms-2">
+                      — {messageModal.listing.users?.first_name} {messageModal.listing.users?.last_name}
+                    </span>
+                  )}
+                </h5>
+                <button type="button" className="btn-close" onClick={closeMessageModal} />
+              </div>
+              <div className="modal-body">
+                <label className="form-label">
+                  Your message
+                  <span className="text-muted fw-normal ms-1 small">(edit before sending)</span>
+                </label>
+                <textarea
+                  className="form-control"
+                  rows={5}
+                  value={messageText}
+                  onChange={e => setMessageText(e.target.value)}
+                  placeholder="Write your message here..."
+                />
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-outline-secondary" onClick={closeMessageModal} disabled={sendingMessage}>
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSendMessage}
+                  disabled={sendingMessage || !messageText.trim()}
+                >
+                  {sendingMessage ? "Sending..." : "Send Message"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
