@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { supabase } from "../../supabaseconfig";
-import { getJobsBySkillsRatings }from "../../api/supabaseapi.jsx"
+import { getJobsBySkillsRatings }from "../../services/supabaseapi.jsx"
 
 export default function JobListings() {
   const { user } = useAuth0();

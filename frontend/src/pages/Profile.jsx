@@ -193,6 +193,33 @@ export default function Profile() {
           </div>
 
           <div className="col-lg-8">
+             <div className="card shadow-sm">
+                <div className="card-body">
+                   <div className="d-flex flex-wrap gap-2">
+                  <h5 className="card-title mb-3">Skills</h5>
+                    <div className="card-body">
+                      {allSkills.map((skill) => {
+                          const isSelected = selectedSkills.includes(skill.skill_id);
+
+                          return (
+                            <button
+                              key={skill.skill_id}
+                              type="button"
+                              className={`btn ${isSelected ? "btn-primary" : "btn-outline-primary"}`}
+                              onClick={() => handleSkillToggle(skill.skill_id)}
+                            >
+                              {skill.name}
+                            </button>
+                          );
+                        })}
+                        </div>
+                    </div>
+                </div>
+             </div>
+          </div>
+
+
+          <div className="col-lg-20">
             <div className="card shadow-sm">
               <div className="card-body">
                 <h5 className="card-title mb-3">Edit Profile Details</h5>
@@ -201,7 +228,7 @@ export default function Profile() {
                 {success && <div className="alert alert-success">{success}</div>}
 
                 <form onSubmit={handleSave}>
-                  <div className="row g-3">
+                  <div className="row g-20">
                     <div className="col-md-6">
                       <label className="form-label">Full Name</label>
                       <input
@@ -252,7 +279,7 @@ export default function Profile() {
                     <div className="col-12">
                       <label className="form-label">Skills</label>
                       <div className="d-flex flex-wrap gap-2">
-                        {allSkills.map((skill) => {
+                        {/* {allSkills.map((skill) => {
                           const isSelected = selectedSkills.includes(skill.skill_id);
 
                           return (
@@ -265,11 +292,11 @@ export default function Profile() {
                               {skill.name}
                             </button>
                           );
-                        })}
+                        })} */}
                       </div>
                     </div>
 
-                    <div className="col-12">
+                    <div className="col-12 mt-2">
                       <button type="submit" className="btn btn-primary px-4">
                         Save Changes
                       </button>
