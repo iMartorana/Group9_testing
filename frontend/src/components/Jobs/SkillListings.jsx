@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { supabase } from "../../supabaseconfig";
@@ -10,6 +11,7 @@ import {
 } from "../../services/supabaseapi";
 
 export default function SkillListings() {
+  const navigate = useNavigate();
   const { user } = useAuth0();
   const [dbUser, setDbUser] = useState(null);
   const [students, setStudents] = useState([]);
@@ -216,20 +218,28 @@ export default function SkillListings() {
                       ))}
                     </div>
                   </div>
-                  <div className="card-footer d-flex gap-2">
-                    <button
-                      className="btn btn-success btn-sm flex-fill"
-                      onClick={() => requestBooking(student)}
-                    >
-                      Hire
-                    </button>
-                    <button
-                      className="btn btn-outline-primary btn-sm flex-fill"
-                      onClick={() => messageStudent(student)}
-                    >
-                      Message
-                    </button>
-                  </div>
+                  <div className="card-footer d-flex gap-2 flex-wrap">
+  <button
+    className="btn btn-success btn-sm flex-fill"
+    onClick={() => requestBooking(student)}
+  >
+    Hire
+  </button>
+
+  <button
+    className="btn btn-outline-primary btn-sm flex-fill"
+    onClick={() => messageStudent(student)}
+  >
+    Message
+  </button>
+
+  <button
+    className="btn btn-outline-secondary btn-sm flex-fill"
+    onClick={() => navigate(`/reviews?studentId=${student.user_id}`)}
+  >
+    Reviews
+  </button>
+</div>
                 </div>
               </div>
             );
