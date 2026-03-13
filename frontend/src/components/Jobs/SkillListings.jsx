@@ -286,20 +286,28 @@ export default function SkillListings() {
                       ))}
                     </div>
                   </div>
-                  <div className="card-footer d-flex gap-2">
-                    <button
-                      className="btn btn-success btn-sm flex-fill"
-                      onClick={() => requestBooking(student)}
-                    >
-                      Hire
-                    </button>
-                    <button
-                      className="btn btn-outline-primary btn-sm flex-fill"
-                      onClick={() => openMessageModal(student)}
-                    >
-                      Message
-                    </button>
-                  </div>
+                  <div className="card-footer d-flex gap-2 flex-wrap">
+  <button
+    className="btn btn-success btn-sm flex-fill"
+    onClick={() => requestBooking(student)}
+  >
+    Hire
+  </button>
+
+  <button
+    className="btn btn-outline-primary btn-sm flex-fill"
+    onClick={() => openMessageModal(student)}
+  >
+    Message
+  </button>
+
+  <button
+    className="btn btn-outline-secondary btn-sm flex-fill"
+    onClick={() => navigate(`/reviews?studentId=${student.user_id}`)}
+  >
+    Reviews
+  </button>
+</div>
                 </div>
               </div>
             );
