@@ -1,54 +1,76 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
+import { getUserByEmail } from "../services/supabaseapi";
 import {
-  getRoleForEmail,
   getSignupRole,
   setRoleForEmail,
-  //clearSignupRole,
 } from "../providers/roleStore";
 
 export default function PostLoginRedirect() {
   const navigate = useNavigate();
   const { user, isAuthenticated, isLoading } = useAuth0();
 
-  // ✅ Permanent admin(s) by email
-  const ADMIN_EMAILS = ["test@uwm.edu"]; // add more if needed
+  const ADMIN_EMAILS = ["test@uwm.edu"];
 
   useEffect(() => {
-    if (isLoading) return;
-    if (!isAuthenticated) return;
+    const redirectUser = async () => {
+      if (isLoading || !isAuthenticated) return;
 
-    const email = (user?.email || "").toLowerCase();
+      const email = (user?.email || "").toLowerCase();
 
-    // ✅ If admin email, always go to admin dashboard
-    if (email && ADMIN_EMAILS.includes(email)) {
-      navigate("/admin", { replace: true });
-      return;
-    }
+      if (email && ADMIN_EMAILS.includes(email)) {
+        navigate("/admin", { replace: true });
+        return;
+      }
 
-    // if no email, default to client dashboard
-    if (!email) {
-      navigate("/client/dashboard", { replace: true });
-      return;
-    }
+      if (!email) {
+        navigate("/client/dashboard", { replace: true });
+        return;
+      }
 
-    // 1) existing role for this email?
-    let role = getRoleForEmail(email);
+      try {
+        const { data, error } = await getUserByEmail(email);
 
-    // 2) if first time right after signup, use signup_role and persist it
-    if (!role) {
+        if (!error && data?.role) {
+          setRoleForEmail(email, data.role);
+
+          if (data.role === "student") {
+            navigate("/student/dashboard", { replace: true });
+            return;
+          }
+
+          if (data.role === "client") {
+            navigate("/client/dashboard", { replace: true });
+            return;
+          }
+
+          if (data.role === "admin") {
+            navigate("/admin", { replace: true });
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch role from database:", err);
+      }
+
       const signupRole = getSignupRole();
       if (signupRole === "student" || signupRole === "client") {
-        role = signupRole;
-        setRoleForEmail(email, role);
-        //clearSignupRole();
-      }
-    }
+        setRoleForEmail(email, signupRole);
 
-    // 3) route based on role (default client)
-    if (role === "student") navigate("/student/dashboard", { replace: true });
-    else navigate("/client/dashboard", { replace: true });
+        if (signupRole === "student") {
+          navigate("/student/dashboard", { replace: true });
+          return;
+        }
+
+        navigate("/client/dashboard", { replace: true });
+        return;
+      }
+
+      navigate("/client/dashboard", { replace: true });
+    };
+
+    redirectUser();
   }, [isLoading, isAuthenticated, user, navigate]);
 
   return <div className="container py-4">Redirecting...</div>;

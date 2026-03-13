@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { supabase } from "../../supabaseconfig";
@@ -10,6 +11,7 @@ import {
 } from "../../services/supabaseapi";
 
 export default function SkillListings() {
+  const navigate = useNavigate();
   const { user } = useAuth0();
   const [dbUser, setDbUser] = useState(null);
   const [students, setStudents] = useState([]);

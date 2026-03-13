@@ -264,21 +264,31 @@ export default function JobListings() {
                     ))}
                   </div>
                 </div>
-                <div className="card-footer d-flex gap-2">
+                <div className="card-footer d-flex gap-2 flex-wrap">
                   <button
-                    className="btn btn-primary btn-sm flex-fill"
-                    disabled={applying === listing.listing_id}
-                    onClick={() => applyForListing(listing)}
-                  >
+                   className="btn btn-primary btn-sm flex-fill"
+                   disabled={applying === listing.listing_id}
+                   onClick={() => applyForListing(listing)}
+                   >
                     {applying === listing.listing_id ? "Applying..." : "Apply"}
-                  </button>
-                  <button
+                   </button>
+                   <button
                     className="btn btn-outline-secondary btn-sm flex-fill"
                     onClick={() => openMessageModal(listing)}
-                  >
+                   >
                     Message
-                  </button>
-                </div>
+                     </button>
+                     <button
+                     className="btn btn-outline-primary btn-sm flex-fill"
+                     onClick={() =>
+                      window.location.href = `/reviews?studentEmail=${encodeURIComponent(listing.users?.email || "")}`
+                    }
+                    
+                    disabled={!listing.users?.email}
+                    >
+                       Reviews
+                    </button>
+                     </div>
               </div>
             </div>
           ))}

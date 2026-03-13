@@ -433,6 +433,26 @@ export async function updateBookingStatus(bookingId, status) {
     .single();
 }
 
+export async function getCompletedBookingsForClientAndStudent(clientUserId, studentUserId) {
+  return await supabase
+    .from("bookings")
+    .select(`
+      bookings_id,
+      status,
+      customer_id,
+      listing_id,
+      listings!inner(
+        listing_id,
+        student_id,
+        title
+      )
+    `)
+    .eq("customer_id", clientUserId)
+    .eq("status", "completed")
+    .eq("listings.student_id", studentUserId)
+    .order("bookings_id", { ascending: false });
+}
+
 // ─────────────────────────────────────────────────
 // REVIEWS
 // ─────────────────────────────────────────────────
@@ -477,10 +497,13 @@ export async function getReviewSummary(revieweeUserId) {
 export async function upsertReview({ bookingId, reviewerUserId, revieweeUserId, rating, comment }) {
   return await supabase
     .from("reviews")
-    .upsert(
-      { booking_id: bookingId, reviewer_user_id: reviewerUserId, reviewee_user_id: revieweeUserId, rating, comment },
-      { onConflict: "booking_id,reviewer_user_id" }
-    )
+    .insert({
+      booking_id: bookingId,
+      reviewer_user_id: reviewerUserId,
+      reviewee_user_id: revieweeUserId,
+      rating,
+      comment,
+    })
     .select()
     .single();
 }
