@@ -18,6 +18,11 @@ export default function SkillListings() {
   const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(true);
 
+    // Message modal state
+  const [messageModal, setMessageModal] = useState({ open: false, student: null });
+  const [messageText, setMessageText] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
+
   // Draft filters
   const [skillFilter, setSkillFilter] = useState("");
   const [maxSalary, setMaxSalary] = useState("");
@@ -103,8 +108,22 @@ export default function SkillListings() {
     return true;
   });
 
-  const messageStudent = async (student) => {
+  const openMessageModal = (student) => {
     if (!dbUser) return;
+    setMessageText(`Hi ${student.first_name}, I'm interested in hiring you for a job. Can we discuss your availability?`);
+    setMessageModal({ open: true, student });
+  };
+ 
+  const closeMessageModal = () => {
+    setMessageModal({ open: false, student: null });
+    setMessageText("");
+  };
+ 
+  const handleSendMessage = async () => {
+    const { student } = messageModal;
+    if (!student || !dbUser) return;
+ 
+    setSendingMessage(true);
     try {
       const { data: convo, error: convoError } = await createConversation({
         initiatorUserId: dbUser.user_id,
@@ -114,13 +133,16 @@ export default function SkillListings() {
       const { error: msgError } = await sendMessage({
         conversationId: convo.conversation_id,
         senderUserId: dbUser.user_id,
-        body: `Hi ${student.first_name}, I'm interested in hiring you for a job. Can we discuss your availability?`,
+        body: messageText.trim(),
       });
       if (msgError) throw msgError;
+      closeMessageModal();
       alert(`Message sent to ${student.first_name}!`);
     } catch (err) {
       console.error("Failed to message:", err);
       alert("Failed to send message.");
+    } finally {
+      setSendingMessage(false);
     }
   };
 
@@ -186,6 +208,52 @@ export default function SkillListings() {
         </div>
       </div>
 
+      {/* Message Modal */}
+      {messageModal.open && (
+        <div className="modal fade show" style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  Message Student
+                  {messageModal.student && (
+                    <span className="text-muted fw-normal fs-6 ms-2">
+                      — {messageModal.student.first_name} {messageModal.student.last_name}
+                    </span>
+                  )}
+                </h5>
+                <button type="button" className="btn-close" onClick={closeMessageModal} />
+              </div>
+              <div className="modal-body">
+                <label className="form-label">
+                  Your message
+                  <span className="text-muted fw-normal ms-1 small">(edit before sending)</span>
+                </label>
+                <textarea
+                  className="form-control"
+                  rows={5}
+                  value={messageText}
+                  onChange={e => setMessageText(e.target.value)}
+                  placeholder="Write your message here..."
+                />
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-outline-secondary" onClick={closeMessageModal} disabled={sendingMessage}>
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSendMessage}
+                  disabled={sendingMessage || !messageText.trim()}
+                >
+                  {sendingMessage ? "Sending..." : "Send Message"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Student Cards */}
       {filtered.length === 0 ? (
         <p className="text-muted">No students match your filters.</p>
@@ -218,28 +286,20 @@ export default function SkillListings() {
                       ))}
                     </div>
                   </div>
-                  <div className="card-footer d-flex gap-2 flex-wrap">
-  <button
-    className="btn btn-success btn-sm flex-fill"
-    onClick={() => requestBooking(student)}
-  >
-    Hire
-  </button>
-
-  <button
-    className="btn btn-outline-primary btn-sm flex-fill"
-    onClick={() => messageStudent(student)}
-  >
-    Message
-  </button>
-
-  <button
-    className="btn btn-outline-secondary btn-sm flex-fill"
-    onClick={() => navigate(`/reviews?studentId=${student.user_id}`)}
-  >
-    Reviews
-  </button>
-</div>
+                  <div className="card-footer d-flex gap-2">
+                    <button
+                      className="btn btn-success btn-sm flex-fill"
+                      onClick={() => requestBooking(student)}
+                    >
+                      Hire
+                    </button>
+                    <button
+                      className="btn btn-outline-primary btn-sm flex-fill"
+                      onClick={() => openMessageModal(student)}
+                    >
+                      Message
+                    </button>
+                  </div>
                 </div>
               </div>
             );
