@@ -34,7 +34,6 @@ export default function Navbar() {
 
         <BsNavbar.Toggle aria-controls="main-navbar" />
         <BsNavbar.Collapse id="main-navbar">
-          
 
           <div className="ms-auto d-flex align-items-center gap-2">
             <span className="small text-muted d-none d-md-inline">
@@ -42,12 +41,13 @@ export default function Navbar() {
             </span>
 
             <div className="d-flex gap-2 me-auto">
-            <ButtonGroup className="mb-2">
+              <ButtonGroup className="mb-2">
                 <Button className="btn" as={Link} to="/AdminDashboard">Home</Button>
                 <Button className="btn" as={Link} to="/Jobs">Jobs</Button>
                 <Button className="btn" as={Link} to="/Messages">Messages</Button>
+                <Button className="btn" as={Link} to="/Bookings">Bookings</Button>
                 <Button className="btn" as={Link} to="/Payment">Payment</Button>
-            </ButtonGroup>
+              </ButtonGroup>
             </div>
 
             <Button as={Link} to="/profile" variant="primary" size="sm">
