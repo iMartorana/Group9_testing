@@ -465,7 +465,7 @@ export async function getReviewsForStudent(revieweeUserId) {
       review_id, 
       rating, 
       comment, 
-      created_at
+      created_at,
       users!reviews_reviewer_user_id_fkey (
         first_name, 
         last_name

@@ -10,6 +10,7 @@ import ClientDashboard from "./pages/client/ClientDashboard";
 import PostLoginRedirect from "./pages/PostLoginRedirect";
 import Profile from "./pages/Profile";
 import Jobs from "./pages/Jobs";
+import Bookings from "./pages/Bookings";
 import Payment from "./pages/Payment";
 import Reviews from "./pages/Reviews";
 import Messages from "./pages/Messages";
@@ -30,29 +31,29 @@ function RequireAuth({ children }) {
 export default function App() {
   const { error, isAuthenticated, isLoading, user } = useAuth0();
 
- useEffect(() => {
-  const syncUser = async () => {
-    if (isLoading || !isAuthenticated || !user?.email) return;
+  useEffect(() => {
+    const syncUser = async () => {
+      if (isLoading || !isAuthenticated || !user?.email) return;
 
-    const existingUser = await getUserByEmail(user.email);
-    const savedRole = localStorage.getItem("signup_role");
+      const existingUser = await getUserByEmail(user.email);
+      const savedRole = localStorage.getItem("signup_role");
 
-    console.log("signup_role from localStorage:", savedRole);
+      console.log("signup_role from localStorage:", savedRole);
 
-    if (!existingUser) {
-      await createUser({
-        email: user.email,
-        first_name: user.given_name || "",
-        last_name: user.family_name || "",
-        role: savedRole || "client",
-      });
-    }
+      if (!existingUser) {
+        await createUser({
+          email: user.email,
+          first_name: user.given_name || "",
+          last_name: user.family_name || "",
+          role: savedRole || "client",
+        });
+      }
 
-    localStorage.removeItem("signup_role");
-  };
+      localStorage.removeItem("signup_role");
+    };
 
-  syncUser();
-}, [user, isAuthenticated, isLoading]);
+    syncUser();
+  }, [user, isAuthenticated, isLoading]);
 
   return (
     <>
@@ -111,6 +112,15 @@ export default function App() {
           element={
             <RequireAuth>
               <Jobs />
+            </RequireAuth>
+          }
+        />
+
+        <Route
+          path="/bookings"
+          element={
+            <RequireAuth>
+              <Bookings />
             </RequireAuth>
           }
         />
