@@ -30,12 +30,12 @@ export default function Profile() {
   });
 
   const handleSkillToggle = (skillId) => {
-  setSelectedSkills((prev) =>
-    prev.includes(skillId)
-      ? prev.filter((id) => id !== skillId)
-      : [...prev, skillId]
-  );
-};
+    setSelectedSkills((prev) =>
+      prev.includes(skillId)
+        ? prev.filter((id) => id !== skillId)
+        : [...prev, skillId]
+    );
+  };
 
   const [previewUrl, setPreviewUrl] = useState("");
   const [error, setError] = useState("");
@@ -43,44 +43,46 @@ export default function Profile() {
   const [profile, setProfile] = useState(null);
 
   useEffect(() => {
-  const loadProfile = async () => {
-    if (!user?.email) return;
+    const loadProfile = async () => {
+      if (!user?.email) return;
 
-    try {
-      const profileData = await getProfileByEmail(user.email);
-      setProfile(profileData);
+      try {
+        const profileData = await getProfileByEmail(user.email);
+        setProfile(profileData);
 
-      const skillsData = await getActiveSkills();
-      setAllSkills(skillsData);
+        if (profileData) {
+          setForm({
+            name: `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim(),
+            email: profileData.email || user.email || "",
+            phone: profileData.phone || "",
+            bio: profileData.bio || "",
+          });
 
-      if (profileData) {
-        setForm({
-          name: `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim(),
-          email: profileData.email || user.email || "",
-          phone: profileData.phone || "",
-          bio: profileData.bio || "",
-        });
+          if (profileData.role === "student") {
+            const skillsData = await getActiveSkills();
+            setAllSkills(skillsData);
 
-        const userSkillIds = await getProfileSkills(profileData.user_id);
-        setSelectedSkills(userSkillIds);
-      } else {
-        setForm({
-          name: user.name || "",
-          email: user.email || "",
-          phone: "",
-          bio: "",
-        });
+            const userSkillIds = await getProfileSkills(profileData.user_id);
+            setSelectedSkills(userSkillIds);
+          }
+        } else {
+          setForm({
+            name: user.name || "",
+            email: user.email || "",
+            phone: "",
+            bio: "",
+          });
+        }
+
+        setPreviewUrl(user.picture || "");
+      } catch (err) {
+        console.error(err);
+        setError("Could not load profile.");
       }
+    };
 
-      setPreviewUrl(user.picture || "");
-    } catch (err) {
-      console.error(err);
-      setError("Could not load profile.");
-    }
-  };
-
-  loadProfile();
-}, [user]);
+    loadProfile();
+  }, [user]);
 
   const handleChange = (e) => {
     setError("");
@@ -153,7 +155,9 @@ export default function Profile() {
         return;
       }
 
-      await saveProfileSkills(updatedProfile.user_id, selectedSkills);
+      if (updatedProfile.role === "student") {
+        await saveProfileSkills(updatedProfile.user_id, selectedSkills);
+      }
 
       setProfile(updatedProfile);
       setSuccess("Profile changes saved successfully.");
@@ -162,6 +166,8 @@ export default function Profile() {
       setError("Could not save profile changes.");
     }
   };
+
+  const isStudent = profile?.role === "student";
 
   return (
     <>
@@ -201,33 +207,38 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="col-lg-8">
-            <div className="card shadow-sm">
-              <div className="card-body">
-                <h5 className="card-title mb-3">Skills</h5>
+          {isStudent && (
+            <div className="col-lg-8">
+              <div className="card shadow-sm">
+                <div className="card-body">
+                  <h5 className="card-title mb-3">Skills</h5>
 
-                <div className="d-flex flex-wrap gap-2">
-                  {allSkills.map((skill) => {
-                    const isSelected = selectedSkills.includes(skill.skill_id);
+                  {allSkills.length === 0 ? (
+                    <p className="text-muted small mb-0">No skills available.</p>
+                  ) : (
+                    <div className="d-flex flex-wrap gap-2">
+                      {allSkills.map((skill) => {
+                        const isSelected = selectedSkills.includes(skill.skill_id);
 
-                    return (
-                      <button
-                        key={skill.skill_id}
-                        type="button"
-                        className={`btn ${
-                          isSelected ? "btn-primary" : "btn-outline-primary"
-                        }`}
-                        onClick={() => handleSkillToggle(skill.skill_id)}
-                      >
-                        {skill.name}
-                      </button>
-                    );
-                  })}
+                        return (
+                          <button
+                            key={skill.skill_id}
+                            type="button"
+                            className={`btn ${
+                              isSelected ? "btn-primary" : "btn-outline-primary"
+                            }`}
+                            onClick={() => handleSkillToggle(skill.skill_id)}
+                          >
+                            {skill.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          </div>
-
+          )}
 
           <div className="col-lg-20">
             <div className="card shadow-sm">
@@ -288,26 +299,6 @@ export default function Profile() {
                       />
                       <div className={`form-text text-end ${form.bio.length >= BIO_MAX ? "text-danger" : ""}`}>
                         {form.bio.length} / {BIO_MAX} characters
-                      </div>
-                    </div>
-
-                    <div className="col-12">
-                      <label className="form-label">Skills</label>
-                      <div className="d-flex flex-wrap gap-2">
-                        {/* {allSkills.map((skill) => {
-                          const isSelected = selectedSkills.includes(skill.skill_id);
-
-                          return (
-                            <button
-                              key={skill.skill_id}
-                              type="button"
-                              className={`btn ${isSelected ? "btn-primary" : "btn-outline-primary"}`}
-                              onClick={() => handleSkillToggle(skill.skill_id)}
-                            >
-                              {skill.name}
-                            </button>
-                          );
-                        })} */}
                       </div>
                     </div>
 
