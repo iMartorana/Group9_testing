@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { Card, Form, Button, Alert } from "react-bootstrap";
-import { upsertReview } from "../../services/supabaseapi.jsx";
+import { upsertReview } from "../../services/supabaseapi";
 
-export default function ReviewForm({ studentEmail, clientEmail, onSubmitted }) {
+export default function ReviewForm({
+  reviewerUserId,
+  revieweeUserId,
+  onSubmitted,
+}) {
   const [rating, setRating] = useState(5);
-  const [reviewText, setReviewText] = useState("");
+  const [comment, setComment] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
@@ -14,16 +18,17 @@ export default function ReviewForm({ studentEmail, clientEmail, onSubmitted }) {
     setErr("");
     setMsg("");
 
-    if (!studentEmail) return setErr("Missing student email.");
-    if (!clientEmail) return setErr("Missing client email.");
+    if (!reviewerUserId) return setErr("Missing reviewer id.");
+    if (!revieweeUserId) return setErr("Missing student id.");
 
     setSaving(true);
 
-    const { data, error } = await upsertReview({
-      studentEmail,
-      clientEmail,
+    const { error } = await upsertReview({
+      bookingId: null,
+      reviewerUserId,
+      revieweeUserId,
       rating: Number(rating),
-      reviewText,
+      comment,
     });
 
     setSaving(false);
@@ -33,15 +38,15 @@ export default function ReviewForm({ studentEmail, clientEmail, onSubmitted }) {
       return;
     }
 
-    setMsg("Review saved!");
-    setReviewText("");
+    setMsg("Review saved successfully.");
+    setComment("");
 
-    if (onSubmitted) onSubmitted(data);
+    if (onSubmitted) onSubmitted();
   };
 
   return (
     <Card className="mb-4">
-      <Card.Header>Submit a Review</Card.Header>
+      <Card.Header>Leave a Review</Card.Header>
       <Card.Body>
         {err && <Alert variant="danger">{err}</Alert>}
         {msg && <Alert variant="success">{msg}</Alert>}
@@ -59,13 +64,13 @@ export default function ReviewForm({ studentEmail, clientEmail, onSubmitted }) {
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Your Review</Form.Label>
+            <Form.Label>Review</Form.Label>
             <Form.Control
               as="textarea"
               rows={4}
-              value={reviewText}
-              onChange={(e) => setReviewText(e.target.value)}
-              placeholder="Write your review here..."
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Describe the student's work quality, professionalism, communication, and overall behavior."
             />
           </Form.Group>
 

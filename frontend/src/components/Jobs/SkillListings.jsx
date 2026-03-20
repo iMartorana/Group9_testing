@@ -1,13 +1,27 @@
+import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import { supabase } from "../../supabaseconfig";
+import {
+  getUserByEmail,
+  getAllSkills,
+  createBookingRequest,
+  createConversation,
+  sendMessage,
+} from "../../services/supabaseapi";
 
 export default function SkillListings() {
+  const navigate = useNavigate();
   const { user } = useAuth0();
   const [dbUser, setDbUser] = useState(null);
   const [students, setStudents] = useState([]);
   const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(true);
+
+    // Message modal state
+  const [messageModal, setMessageModal] = useState({ open: false, student: null });
+  const [messageText, setMessageText] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   // Draft filters
   const [skillFilter, setSkillFilter] = useState("");
@@ -26,11 +40,7 @@ export default function SkillListings() {
 
   const fetchData = async () => {
     try {
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("user_id, role")
-        .eq("email", user.email)
-        .single();
+      const { data: userData, error: userError } = await getUserByEmail(user.email);
       if (userError) throw userError;
       setDbUser(userData);
 
@@ -39,29 +49,16 @@ export default function SkillListings() {
         .from("users")
         .select(`
           user_id, first_name, last_name, bio,
-          studentskills (
-            proficiency,
-            skills ( skill_id, name )
-          ),
-          listings (
-            listing_id, title, price_amount,
-            pricing_type, location_text, status
-          ),
-          availabilityslots (
-            slot_id, start_at, end_at, status
-          )
+          studentskills ( proficiency, skills ( skill_id, name ) ),
+          listings ( listing_id, title, price_amount, pricing_type, location_text, status ),
+          availabilityslots ( slot_id, start_at, end_at, status )
         `)
         .eq("role", "student");
       if (studentError) throw studentError;
-
       setStudents((studentData || []).filter(s => s.listings?.some(l => l.status === "active")));
 
       // Fetch all active skills for filter dropdown
-      const { data: skillData, error: skillError } = await supabase
-        .from("skills")
-        .select("skill_id, name")
-        .eq("is_active", true)
-        .order("name");
+      const { data: skillData, error: skillError } = await getAllSkills();
       if (skillError) throw skillError;
       setSkills(skillData || []);
     } catch (err) {
@@ -71,7 +68,7 @@ export default function SkillListings() {
     }
   };
 
-const handleApplyFilters = () => {
+  const handleApplyFilters = () => {
     setApplied({ skill: skillFilter, maxSalary, location: locationFilter, availability: availabilityFilter, });
   };
 
@@ -80,8 +77,7 @@ const handleApplyFilters = () => {
     setApplied({ skill: "", maxSalary: "", location: "", availability: "" });
   };
 
-  const getStudentSkills = (student) =>
-    student.studentskills?.map(ss => ss.skills).filter(Boolean) ?? [];
+  const getStudentSkills = (student) => student.studentskills?.map(ss => ss.skills).filter(Boolean) ?? [];
 
   const getMinPrice = (student) => {
     const prices = student.listings?.filter(l => l.status === "active").map(l => l.price_amount) ?? [];
@@ -107,35 +103,46 @@ const handleApplyFilters = () => {
       if (!hasLocation) return false;
     }
     if (applied.availability) {
-      const hasSlot = student.availabilityslots?.some(s => s.status === applied.availability);
-      if (!hasSlot) return false;
+      if (!student.availabilityslots?.some(s => s.status === applied.availability)) return false;
     }
     return true;
   });
 
-  const messageStudent = async (student) => {
+  const openMessageModal = (student) => {
     if (!dbUser) return;
+    setMessageText(`Hi ${student.first_name}, I'm interested in hiring you for a job. Can we discuss your availability?`);
+    setMessageModal({ open: true, student });
+  };
+ 
+  const closeMessageModal = () => {
+    setMessageModal({ open: false, student: null });
+    setMessageText("");
+  };
+ 
+  const handleSendMessage = async () => {
+    const { student } = messageModal;
+    if (!student || !dbUser) return;
+ 
+    setSendingMessage(true);
     try {
-      const { data: convo, error: convoError } = await supabase
-        .from("conversations")
-        .insert({ request_id: null, booking_id: null })
-        .select()
-        .single();
+      const { data: convo, error: convoError } = await createConversation({
+        initiatorUserId: dbUser.user_id,
+        recipientUserId: student.user_id,
+      });
       if (convoError) throw convoError;
-
-      const { error: msgError } = await supabase
-        .from("messages")
-        .insert({
-          conversation_id: convo.conversation_id,
-          sender_user_id: dbUser.user_id,
-          body: `Hi ${student.first_name}, I'm interested in hiring you for a job. Can we discuss your availability?`,
-          sent_at: new Date().toISOString(),
-        });
+      const { error: msgError } = await sendMessage({
+        conversationId: convo.conversation_id,
+        senderUserId: dbUser.user_id,
+        body: messageText.trim(),
+      });
       if (msgError) throw msgError;
+      closeMessageModal();
       alert(`Message sent to ${student.first_name}!`);
     } catch (err) {
       console.error("Failed to message:", err);
       alert("Failed to send message.");
+    } finally {
+      setSendingMessage(false);
     }
   };
 
@@ -143,18 +150,14 @@ const handleApplyFilters = () => {
     if (!dbUser) return;
     const activeListing = student.listings?.find(l => l.status === "active");
     if (!activeListing) return alert("No active listings for this student.");
-
     try {
       const now = new Date().toISOString();
-      const { error } = await supabase
-        .from("bookingrequests")
-        .insert({
-          customer_id: dbUser.user_id,
-          listing_id: activeListing.listing_id,
-          requested_start_at: now,
-          requested_end_at: now,
-          status: "pending",
-        });
+      const { error } = await createBookingRequest({
+        customer_id: dbUser.user_id,
+        listing_id: activeListing.listing_id,
+        requested_start_at: now,
+        requested_end_at: now,
+      });
       if (error) throw error;
       alert(`Booking request sent to ${student.first_name}!`);
     } catch (err) {
@@ -205,6 +208,52 @@ const handleApplyFilters = () => {
         </div>
       </div>
 
+      {/* Message Modal */}
+      {messageModal.open && (
+        <div className="modal fade show" style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  Message Student
+                  {messageModal.student && (
+                    <span className="text-muted fw-normal fs-6 ms-2">
+                      — {messageModal.student.first_name} {messageModal.student.last_name}
+                    </span>
+                  )}
+                </h5>
+                <button type="button" className="btn-close" onClick={closeMessageModal} />
+              </div>
+              <div className="modal-body">
+                <label className="form-label">
+                  Your message
+                  <span className="text-muted fw-normal ms-1 small">(edit before sending)</span>
+                </label>
+                <textarea
+                  className="form-control"
+                  rows={5}
+                  value={messageText}
+                  onChange={e => setMessageText(e.target.value)}
+                  placeholder="Write your message here..."
+                />
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-outline-secondary" onClick={closeMessageModal} disabled={sendingMessage}>
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSendMessage}
+                  disabled={sendingMessage || !messageText.trim()}
+                >
+                  {sendingMessage ? "Sending..." : "Send Message"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Student Cards */}
       {filtered.length === 0 ? (
         <p className="text-muted">No students match your filters.</p>
@@ -237,20 +286,28 @@ const handleApplyFilters = () => {
                       ))}
                     </div>
                   </div>
-                  <div className="card-footer d-flex gap-2">
-                    <button
-                      className="btn btn-success btn-sm flex-fill"
-                      onClick={() => requestBooking(student)}
-                    >
-                      Hire
-                    </button>
-                    <button
-                      className="btn btn-outline-primary btn-sm flex-fill"
-                      onClick={() => messageStudent(student)}
-                    >
-                      Message
-                    </button>
-                  </div>
+                  <div className="card-footer d-flex gap-2 flex-wrap">
+  <button
+    className="btn btn-success btn-sm flex-fill"
+    onClick={() => requestBooking(student)}
+  >
+    Hire
+  </button>
+
+  <button
+    className="btn btn-outline-primary btn-sm flex-fill"
+    onClick={() => openMessageModal(student)}
+  >
+    Message
+  </button>
+
+  <button
+    className="btn btn-outline-secondary btn-sm flex-fill"
+    onClick={() => navigate(`/reviews?studentId=${student.user_id}`)}
+  >
+    Reviews
+  </button>
+</div>
                 </div>
               </div>
             );

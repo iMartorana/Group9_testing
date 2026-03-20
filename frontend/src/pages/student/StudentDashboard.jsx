@@ -2,19 +2,54 @@ import { useAuth0 } from "@auth0/auth0-react";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Navbar from "../../components/Navbar";
-
+import RatingStars from "../../components/Reviews/RatingStars";
+import {
+  getUserByEmail,
+  getReviewsForStudent,
+  getReviewSummary,
+} from "../../services/supabaseapi";
 
 export default function StudentDashboard() {
   const { user } = useAuth0();
   const [profile, setProfile] = useState(null);
+  const [dbUser, setDbUser] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [reviewSummary, setReviewSummary] = useState({ avg: 0, count: 0 });
 
   useEffect(() => {
     if (!user?.email) return;
-    const saved = localStorage.getItem(`profile_${user.email.toLowerCase()}`);
-    if (saved) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setProfile(JSON.parse(saved));
-    }
+
+    const loadDashboardData = async () => {
+      const saved = localStorage.getItem(`profile_${user.email.toLowerCase()}`);
+      if (saved) {
+        setProfile(JSON.parse(saved));
+      }
+
+      const { data: userData, error: userError } = await getUserByEmail(user.email);
+      if (userError || !userData) {
+        console.error("Failed to load user data:", userError);
+        return;
+      }
+
+      setDbUser(userData);
+
+      const [{ data: reviewList, error: reviewError }, { data: summaryData, error: summaryError }] =
+        await Promise.all([
+          getReviewsForStudent(userData.user_id),
+          getReviewSummary(userData.user_id),
+        ]);
+        console.log("reviewList:", reviewList);
+
+      if (!reviewError && Array.isArray(reviewList)) {
+        setReviews(reviewList);
+      }
+
+      if (!summaryError && summaryData) {
+        setReviewSummary(summaryData);
+      }
+    };
+
+    loadDashboardData();
   }, [user]);
 
   return (
@@ -29,11 +64,9 @@ export default function StudentDashboard() {
                 Welcome back, {profile?.name || user?.email || "Student"}
               </h1>
               <p className="text-muted mb-0">
-                Manage your profile, explore job opportunities, track reviews, and stay ready for new client connections.
+                Manage your profile, explore job opportunities, and keep track of what clients are saying about your work.
               </p>
             </div>
-
-          
           </div>
         </div>
 
@@ -83,13 +116,16 @@ export default function StudentDashboard() {
           <div className="col-md-6 col-xl-3">
             <div className="card h-100 shadow-sm border-0">
               <div className="card-body">
-                <h5 className="card-title">Reviews</h5>
-                <p className="card-text text-muted">
-                  Check your ratings and see what clients think about your work.
+                <h5 className="card-title">My Rating</h5>
+                <p className="card-text text-muted mb-2">
+                  See how clients are rating your work and professionalism.
                 </p>
-                <Link to="/reviews" className="btn btn-sm btn-primary">
-                  View Reviews
-                </Link>
+                <div className="mb-2">
+                  <RatingStars value={reviewSummary.avg} />
+                </div>
+                <div className="text-muted small">
+                  {reviewSummary.count} review{reviewSummary.count === 1 ? "" : "s"}
+                </div>
               </div>
             </div>
           </div>
@@ -141,6 +177,45 @@ export default function StudentDashboard() {
           <div className="col-lg-4">
             <div className="card shadow-sm border-0 mb-4">
               <div className="card-body">
+                <h5 className="mb-3">Recent Reviews</h5>
+
+                {reviews.length === 0 ? (
+                  <p className="text-muted mb-0">No reviews yet.</p>
+                ) : (
+                  <div className="d-flex flex-column gap-3">
+                    {reviews.slice(0, 3).map((review) => (
+                      <div key={review.review_id} className="border rounded p-3 bg-light">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <strong>
+                            {review.users
+                              ? `${review.users.first_name || ""} ${review.users.last_name || ""}`.trim()
+                              : "Client"}
+                          </strong>
+                          <RatingStars value={review.rating} />
+                        </div>
+
+                        <p className="text-muted mb-1">
+                          {review.comment || "No written comment provided."}
+                        </p>
+
+                        <div className="small text-muted">
+                          {new Date(review.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-3">
+                  <Link to={dbUser ? `/reviews?studentId=${dbUser.user_id}` : "/reviews"} className="btn btn-outline-primary btn-sm">
+                    View All Reviews
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            <div className="card shadow-sm border-0">
+              <div className="card-body">
                 <h5 className="mb-3">Quick Actions</h5>
                 <div className="d-grid gap-2">
                   <Link to="/profile" className="btn btn-outline-primary">
@@ -149,24 +224,13 @@ export default function StudentDashboard() {
                   <Link to="/jobs" className="btn btn-outline-primary">
                     Browse Opportunities
                   </Link>
-                  <Link to="/reviews" className="btn btn-outline-primary">
-                    Check Reviews
+                  <Link to="/messages" className="btn btn-outline-primary">
+                    Check Messages
                   </Link>
                   <Link to="/payment" className="btn btn-outline-primary">
                     View Payments
                   </Link>
                 </div>
-              </div>
-            </div>
-
-            <div className="card shadow-sm border-0">
-              <div className="card-body">
-                <h5 className="mb-3">Recent Activity</h5>
-                <ul className="list-group list-group-flush">
-                  <li className="list-group-item px-0 text-muted">No recent messages yet.</li>
-                  <li className="list-group-item px-0 text-muted">No recent reviews yet.</li>
-                  <li className="list-group-item px-0 text-muted">No recent payments yet.</li>
-                </ul>
               </div>
             </div>
           </div>
