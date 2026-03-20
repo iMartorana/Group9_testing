@@ -1,6 +1,11 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import { Link, useLocation } from "react-router-dom";
-import { Button, ButtonGroup, Container, Navbar as BsNavbar } from "react-bootstrap";
+import {
+  Button,
+  Container,
+  Nav,
+  Navbar as BsNavbar,
+} from "react-bootstrap";
 import { getRoleForEmail } from "../providers/roleStore";
 
 export default function Navbar() {
@@ -21,34 +26,64 @@ export default function Navbar() {
       logoutParams: { returnTo: window.location.origin },
     });
 
-  // eslint-disable-next-line no-unused-vars
-  const navLinkClass = (path) =>
-    location.pathname === path ? "fw-semibold text-primary" : "";
+  const isActive = (path) => location.pathname === path;
 
   return (
-    <BsNavbar bg="light" expand="lg" className="border-bottom shadow-sm">
+    <BsNavbar bg="light" expand="lg" className="border-bottom shadow-sm py-2">
       <Container fluid className="px-4">
         <BsNavbar.Brand as={Link} to={getHomePath()} className="fw-bold fs-4">
           TaskFinder
         </BsNavbar.Brand>
 
         <BsNavbar.Toggle aria-controls="main-navbar" />
-        <BsNavbar.Collapse id="main-navbar">
 
-          <div className="ms-auto d-flex align-items-center gap-2">
+        <BsNavbar.Collapse id="main-navbar">
+          <Nav className="ms-auto align-items-lg-center gap-lg-2">
+            <Nav.Link
+              as={Link}
+              to="/AdminDashboard"
+              className={isActive("/AdminDashboard") ? "fw-bold text-primary" : "fw-semibold"}
+            >
+              Home
+            </Nav.Link>
+
+            <Nav.Link
+              as={Link}
+              to="/Jobs"
+              className={isActive("/Jobs") ? "fw-bold text-primary" : "fw-semibold"}
+            >
+              Jobs
+            </Nav.Link>
+
+            <Nav.Link
+              as={Link}
+              to="/Messages"
+              className={isActive("/Messages") ? "fw-bold text-primary" : "fw-semibold"}
+            >
+              Messages
+            </Nav.Link>
+
+            <Nav.Link
+              as={Link}
+              to="/Bookings"
+              className={isActive("/Bookings") ? "fw-bold text-primary" : "fw-semibold"}
+            >
+              Bookings
+            </Nav.Link>
+
+            <Nav.Link
+              as={Link}
+              to="/Payment"
+              className={isActive("/Payment") ? "fw-bold text-primary" : "fw-semibold"}
+            >
+              Payment
+            </Nav.Link>
+          </Nav>
+
+          <div className="d-flex align-items-center gap-2 ms-lg-3 mt-3 mt-lg-0">
             <span className="small text-muted d-none d-md-inline">
               {user?.email || user?.name}
             </span>
-
-            <div className="d-flex gap-2 me-auto">
-              <ButtonGroup className="mb-2">
-                <Button className="btn" as={Link} to="/AdminDashboard">Home</Button>
-                <Button className="btn" as={Link} to="/Jobs">Jobs</Button>
-                <Button className="btn" as={Link} to="/Messages">Messages</Button>
-                <Button className="btn" as={Link} to="/Bookings">Bookings</Button>
-                <Button className="btn" as={Link} to="/Payment">Payment</Button>
-              </ButtonGroup>
-            </div>
 
             <Button as={Link} to="/profile" variant="primary" size="sm">
               Profile
