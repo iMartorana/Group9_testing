@@ -25,14 +25,12 @@ export default function ClientDashboard() {
           <div className="row align-items-center g-4">
             <div className="col-md-8">
               <h1 className="display-6 fw-bold mb-2">
-                Welcome back, { user?.name || "Client"}
+                Welcome back, {profile?.name || user?.email || "Client"}
               </h1>
               <p className="text-muted mb-0">
-                Find student talent, manage payments, leave reviews, and keep your hiring process organized in one place.
+                Find student talent, manage payments, and keep your hiring process organized in one place.
               </p>
             </div>
-
-            
           </div>
         </div>
 
@@ -84,10 +82,10 @@ export default function ClientDashboard() {
               <div className="card-body">
                 <h5 className="card-title">Reviews</h5>
                 <p className="card-text text-muted">
-                  Leave feedback for students and review past ratings.
+                  Open student reviews directly from the Jobs page.
                 </p>
-                <Link to="/reviews" className="btn btn-sm btn-primary">
-                  Open Reviews
+                <Link to="/jobs" className="btn btn-sm btn-primary">
+                  Go to Jobs
                 </Link>
               </div>
             </div>
@@ -148,8 +146,8 @@ export default function ClientDashboard() {
                   <Link to="/payment" className="btn btn-outline-primary">
                     Make a Payment
                   </Link>
-                  <Link to="/reviews" className="btn btn-outline-primary">
-                    Leave a Review
+                  <Link to="/jobs" className="btn btn-outline-primary">
+                    Review from Jobs
                   </Link>
                   <Link to="/profile" className="btn btn-outline-primary">
                     Update Profile

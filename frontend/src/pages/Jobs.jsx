@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import Navbar from "../components/Navbar";
@@ -14,6 +15,7 @@ import {
 } from "../services/supabaseapi";
 
 export default function Jobs() {
+  const navigate = useNavigate();
   const { user } = useAuth0();
   const [dbUser, setDbUser] = useState(null);
   const [role, setRole] = useState(null);
@@ -35,11 +37,20 @@ export default function Jobs() {
   const [dateFilter, setDateFilter] = useState("");
   const [pricingType, setPricingType] = useState("");
   const [applied, setApplied] = useState({
-    skill: "", location: "", maxPay: "", date: "", pricingType: ""
+    skill: "",
+    location: "",
+    maxPay: "",
+    date: "",
+    pricingType: "",
   });
 
   const [newListing, setNewListing] = useState({
-    title: "", description: "", location_text: "", pricing_type: "hourly", price_amount: "", selectedSkills: []
+    title: "",
+    description: "",
+    location_text: "",
+    pricing_type: "hourly",
+    price_amount: "",
+    selectedSkills: [],
   });
 
   useEffect(() => {
@@ -60,11 +71,11 @@ export default function Jobs() {
       setSkills(skillData || []);
 
       if (userData.role === "student") {
-        const { data: studentSkillData, error: studentSkillError } = await getSkillsForStudent(userData.user_id);
+        const { data: studentSkillData, error: studentSkillError } =
+          await getSkillsForStudent(userData.user_id);
+
         if (!studentSkillError && studentSkillData) {
-          const profileSkills = studentSkillData
-            .map((row) => row.skills)
-            .filter(Boolean);
+          const profileSkills = studentSkillData.map((row) => row.skills).filter(Boolean);
           setStudentSkills(profileSkills);
         }
       }
@@ -82,23 +93,45 @@ export default function Jobs() {
   };
 
   const handleApplyFilters = () => {
-    setApplied({ skill: skillFilter, location: locationFilter, maxPay, date: dateFilter, pricingType });
+    setApplied({
+      skill: skillFilter,
+      location: locationFilter,
+      maxPay,
+      date: dateFilter,
+      pricingType,
+    });
   };
 
   const handleClearFilters = () => {
-    setSkillFilter(""); setLocationFilter(""); setMaxPay(""); setDateFilter(""); setPricingType("");
-    setApplied({ skill: "", location: "", maxPay: "", date: "", pricingType: "" });
+    setSkillFilter("");
+    setLocationFilter("");
+    setMaxPay("");
+    setDateFilter("");
+    setPricingType("");
+    setApplied({
+      skill: "",
+      location: "",
+      maxPay: "",
+      date: "",
+      pricingType: "",
+    });
   };
 
-  const filtered = listings.filter(listing => {
+  const filtered = listings.filter((listing) => {
     if (role === "student" && dbUser && listing.student_id === dbUser.user_id) return false;
 
-    const listingSkillNames = listing.listingsskills?.map(ls => ls.skills?.name) ?? [];
+    const listingSkillNames = listing.listingsskills?.map((ls) => ls.skills?.name) ?? [];
     if (applied.skill && !listingSkillNames.includes(applied.skill)) return false;
-    if (applied.location && !listing.location_text?.toLowerCase().includes(applied.location.toLowerCase())) return false;
+    if (
+      applied.location &&
+      !listing.location_text?.toLowerCase().includes(applied.location.toLowerCase())
+    ) {
+      return false;
+    }
     if (applied.maxPay && listing.price_amount > Number(applied.maxPay)) return false;
     if (applied.date && new Date(listing.created_at) < new Date(applied.date)) return false;
     if (applied.pricingType && listing.pricing_type !== applied.pricingType) return false;
+
     return true;
   });
 
@@ -113,8 +146,15 @@ export default function Jobs() {
 
   const sendHireRequest = async () => {
     if (!dbUser || !hireModal) return;
-    if (!hireForm.startDate || !hireForm.endDate) return alert("Please set a start and end date.");
-    if (new Date(hireForm.endDate) < new Date(hireForm.startDate)) return alert("End date must be after start date.");
+    if (!hireForm.startDate || !hireForm.endDate) {
+      alert("Please set a start and end date.");
+      return;
+    }
+    if (new Date(hireForm.endDate) < new Date(hireForm.startDate)) {
+      alert("End date must be after start date.");
+      return;
+    }
+
     setHiring(true);
     try {
       const { error } = await createBookingRequest({
@@ -124,6 +164,7 @@ export default function Jobs() {
         requested_end_at: new Date(hireForm.endDate).toISOString(),
         note: JSON.stringify({ agreed_price: Number(hireForm.price) }),
       });
+
       if (error) throw error;
       alert("Hire request sent!");
       setHireModal(null);
@@ -142,8 +183,13 @@ export default function Jobs() {
 
   const sendMessageToListing = async () => {
     if (!dbUser || !messageModal) return;
+
     const recipientId = messageModal.users?.user_id;
-    if (!recipientId) return alert("Cannot message: listing has no associated user.");
+    if (!recipientId) {
+      alert("Cannot message: listing has no associated user.");
+      return;
+    }
+
     setSendingMessage(true);
     try {
       const { data: convo, error: convoError } = await createConversation({
@@ -151,12 +197,14 @@ export default function Jobs() {
         recipientUserId: recipientId,
       });
       if (convoError) throw convoError;
+
       const { error: msgError } = await sendMessage({
         conversationId: convo.conversation_id,
         senderUserId: dbUser.user_id,
         body: messageBody.trim(),
       });
       if (msgError) throw msgError;
+
       alert("Message sent!");
       setMessageModal(null);
       setMessageBody("");
@@ -169,7 +217,11 @@ export default function Jobs() {
   };
 
   const handleCreateListing = async () => {
-    if (!newListing.title || !newListing.price_amount) return alert("Please fill in title and price.");
+    if (!newListing.title || !newListing.price_amount) {
+      alert("Please fill in title and price.");
+      return;
+    }
+
     try {
       const { data: created, error: listingError } = await createListing({
         student_id: dbUser.user_id,
@@ -187,7 +239,14 @@ export default function Jobs() {
 
       alert("Listing created!");
       setShowCreateModal(false);
-      setNewListing({ title: "", description: "", location_text: "", pricing_type: "hourly", price_amount: "", selectedSkills: [] });
+      setNewListing({
+        title: "",
+        description: "",
+        location_text: "",
+        pricing_type: "hourly",
+        price_amount: "",
+        selectedSkills: [],
+      });
       await fetchListings();
     } catch (err) {
       console.error("Failed to create listing:", err);
@@ -196,27 +255,27 @@ export default function Jobs() {
   };
 
   const toggleSkill = (skill_id) => {
-    setNewListing(prev => ({
+    setNewListing((prev) => ({
       ...prev,
       selectedSkills: prev.selectedSkills.includes(skill_id)
-        ? prev.selectedSkills.filter(id => id !== skill_id)
-        : [...prev.selectedSkills, skill_id]
+        ? prev.selectedSkills.filter((id) => id !== skill_id)
+        : [...prev.selectedSkills, skill_id],
     }));
   };
 
-  if (loading) return (
-    <>
-      <Navbar />
-      <div className="container py-4">Loading...</div>
-    </>
-  );
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <div className="container py-4">Loading...</div>
+      </>
+    );
+  }
 
   return (
     <>
       <Navbar />
       <div className="container py-4">
-
-        {/* Header */}
         <div className="d-flex justify-content-between align-items-center mb-4">
           <h2 className="mb-0">Available Jobs</h2>
           {role === "student" && (
@@ -226,83 +285,141 @@ export default function Jobs() {
           )}
         </div>
 
-        {/* Filters */}
         <div className="card mb-4">
           <div className="card-body">
             <h5 className="card-title mb-3">Filter Jobs</h5>
             <div className="row g-3">
               <div className="col-md-4">
                 <label className="form-label">Skill</label>
-                <select className="form-select" value={skillFilter} onChange={e => setSkillFilter(e.target.value)}>
+                <select
+                  className="form-select"
+                  value={skillFilter}
+                  onChange={(e) => setSkillFilter(e.target.value)}
+                >
                   <option value="">All Skills</option>
-                  {skills.map(s => (<option key={s.skill_id} value={s.name}>{s.name}</option>))}
+                  {skills.map((s) => (
+                    <option key={s.skill_id} value={s.name}>
+                      {s.name}
+                    </option>
+                  ))}
                 </select>
               </div>
+
               <div className="col-md-4">
                 <label className="form-label">Location</label>
-                <input className="form-control" placeholder="e.g. Milwaukee" value={locationFilter} onChange={e => setLocationFilter(e.target.value)} />
+                <input
+                  className="form-control"
+                  placeholder="e.g. Milwaukee"
+                  value={locationFilter}
+                  onChange={(e) => setLocationFilter(e.target.value)}
+                />
               </div>
+
               <div className="col-md-4">
                 <label className="form-label">Maximum Pay ($)</label>
-                <input className="form-control" type="number" placeholder="e.g. 50" value={maxPay} onChange={e => setMaxPay(e.target.value)} />
+                <input
+                  className="form-control"
+                  type="number"
+                  placeholder="e.g. 50"
+                  value={maxPay}
+                  onChange={(e) => setMaxPay(e.target.value)}
+                />
               </div>
+
               <div className="col-md-4">
                 <label className="form-label">Posted After</label>
-                <input className="form-control" type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} />
+                <input
+                  className="form-control"
+                  type="date"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                />
               </div>
+
               <div className="col-md-4">
                 <label className="form-label">Pricing Type</label>
-                <select className="form-select" value={pricingType} onChange={e => setPricingType(e.target.value)}>
+                <select
+                  className="form-select"
+                  value={pricingType}
+                  onChange={(e) => setPricingType(e.target.value)}
+                >
                   <option value="">Any</option>
                   <option value="hourly">Hourly</option>
                   <option value="fixed">Fixed</option>
                 </select>
               </div>
+
               <div className="col-md-4 d-flex align-items-end gap-2">
-                <button className="btn btn-primary w-100" onClick={handleApplyFilters}>Apply Filters</button>
-                <button className="btn btn-outline-secondary w-100" onClick={handleClearFilters}>Clear</button>
+                <button className="btn btn-primary w-100" onClick={handleApplyFilters}>
+                  Apply Filters
+                </button>
+                <button className="btn btn-outline-secondary w-100" onClick={handleClearFilters}>
+                  Clear
+                </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Job Cards */}
         {filtered.length === 0 ? (
           <p className="text-muted">No jobs match your filters.</p>
         ) : (
           <div className="row g-3">
-            {filtered.map(listing => (
+            {filtered.map((listing) => (
               <div className="col-md-6" key={listing.listing_id}>
                 <div className="card h-100 shadow-sm">
                   <div className="card-header">
                     <h5 className="card-title mb-0">{listing.title}</h5>
                   </div>
+
                   <div className="card-body">
                     <p className="text-muted small mb-1">
                       Posted by {listing.users?.first_name} {listing.users?.last_name}
                     </p>
+
                     {listing.description && <p className="small mb-2">{listing.description}</p>}
-                    <p className="text-muted mb-1">Location: {listing.location_text || "Remote"}</p>
-                    <p className="text-muted mb-1">Rate: ${listing.price_amount} ({listing.pricing_type})</p>
-                    <p className="text-muted mb-2">Date: {new Date(listing.created_at).toLocaleDateString()}</p>
+
+                    <p className="text-muted mb-1">
+                      Location: {listing.location_text || "Remote"}
+                    </p>
+
+                    <p className="text-muted mb-1">
+                      Rate: ${listing.price_amount} ({listing.pricing_type})
+                    </p>
+
+                    <p className="text-muted mb-2">
+                      Date: {new Date(listing.created_at).toLocaleDateString()}
+                    </p>
+
                     <div>
-                      {listing.listingsskills?.map(ls => (
-                        <span key={ls.skills?.skill_id} className="badge bg-primary me-1">{ls.skills?.name}</span>
+                      {listing.listingsskills?.map((ls) => (
+                        <span key={ls.skills?.skill_id} className="badge bg-primary me-1">
+                          {ls.skills?.name}
+                        </span>
                       ))}
                     </div>
                   </div>
-                  <div className="card-footer d-flex gap-2">
+
+                  <div className="card-footer d-flex gap-2 flex-wrap">
                     <button
                       className="btn btn-primary btn-sm flex-fill"
                       onClick={() => openHireModal(listing)}
                     >
                       Hire
                     </button>
+
                     <button
                       className="btn btn-outline-secondary btn-sm flex-fill"
                       onClick={() => openMessageModal(listing)}
                     >
                       Message
+                    </button>
+
+                    <button
+                      className="btn btn-outline-primary btn-sm flex-fill"
+                      onClick={() => navigate(`/reviews?studentId=${listing.student_id}`)}
+                    >
+                      Reviews
                     </button>
                   </div>
                 </div>
@@ -311,15 +428,22 @@ export default function Jobs() {
           </div>
         )}
 
-        {/* Create Listing Modal (students only) */}
         {showCreateModal && (
-          <div className="modal fade show" style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div
+            className="modal fade show"
+            style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
+          >
             <div className="modal-dialog modal-dialog-centered modal-lg">
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title">Post a New Job</h5>
-                  <button type="button" className="btn-close" onClick={() => setShowCreateModal(false)} />
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setShowCreateModal(false)}
+                  />
                 </div>
+
                 <div className="modal-body">
                   <div className="row g-3">
                     <div className="col-12">
@@ -328,9 +452,12 @@ export default function Jobs() {
                         className="form-control"
                         placeholder="e.g. Pet Sitter Available for Weekend Gigs"
                         value={newListing.title}
-                        onChange={e => setNewListing(prev => ({ ...prev, title: e.target.value }))}
+                        onChange={(e) =>
+                          setNewListing((prev) => ({ ...prev, title: e.target.value }))
+                        }
                       />
                     </div>
+
                     <div className="col-12">
                       <label className="form-label">Description</label>
                       <textarea
@@ -338,29 +465,47 @@ export default function Jobs() {
                         rows={3}
                         placeholder="Describe what you can do..."
                         value={newListing.description}
-                        onChange={e => setNewListing(prev => ({ ...prev, description: e.target.value }))}
+                        onChange={(e) =>
+                          setNewListing((prev) => ({
+                            ...prev,
+                            description: e.target.value,
+                          }))
+                        }
                       />
                     </div>
+
                     <div className="col-md-6">
                       <label className="form-label">Location</label>
                       <input
                         className="form-control"
                         placeholder="e.g. Milwaukee, WI or Remote"
                         value={newListing.location_text}
-                        onChange={e => setNewListing(prev => ({ ...prev, location_text: e.target.value }))}
+                        onChange={(e) =>
+                          setNewListing((prev) => ({
+                            ...prev,
+                            location_text: e.target.value,
+                          }))
+                        }
                       />
                     </div>
+
                     <div className="col-md-3">
                       <label className="form-label">Pricing Type *</label>
                       <select
                         className="form-select"
                         value={newListing.pricing_type}
-                        onChange={e => setNewListing(prev => ({ ...prev, pricing_type: e.target.value }))}
+                        onChange={(e) =>
+                          setNewListing((prev) => ({
+                            ...prev,
+                            pricing_type: e.target.value,
+                          }))
+                        }
                       >
                         <option value="hourly">Hourly</option>
                         <option value="fixed">Fixed</option>
                       </select>
                     </div>
+
                     <div className="col-md-3">
                       <label className="form-label">Price ($) *</label>
                       <input
@@ -368,9 +513,15 @@ export default function Jobs() {
                         type="number"
                         placeholder="e.g. 25"
                         value={newListing.price_amount}
-                        onChange={e => setNewListing(prev => ({ ...prev, price_amount: e.target.value }))}
+                        onChange={(e) =>
+                          setNewListing((prev) => ({
+                            ...prev,
+                            price_amount: e.target.value,
+                          }))
+                        }
                       />
                     </div>
+
                     <div className="col-12">
                       <label className="form-label">Your Skills</label>
                       {studentSkills.length === 0 ? (
@@ -380,7 +531,7 @@ export default function Jobs() {
                         </p>
                       ) : (
                         <div className="d-flex flex-wrap gap-2">
-                          {studentSkills.map(s => (
+                          {studentSkills.map((s) => (
                             <div key={s.skill_id}>
                               <input
                                 type="checkbox"
@@ -390,7 +541,11 @@ export default function Jobs() {
                                 onChange={() => toggleSkill(s.skill_id)}
                               />
                               <label
-                                className={`btn btn-sm ${newListing.selectedSkills.includes(s.skill_id) ? "btn-primary" : "btn-outline-primary"}`}
+                                className={`btn btn-sm ${
+                                  newListing.selectedSkills.includes(s.skill_id)
+                                    ? "btn-primary"
+                                    : "btn-outline-primary"
+                                }`}
                                 htmlFor={`skill-${s.skill_id}`}
                               >
                                 {s.name}
@@ -402,36 +557,59 @@ export default function Jobs() {
                     </div>
                   </div>
                 </div>
+
                 <div className="modal-footer">
-                  <button className="btn btn-outline-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
-                  <button className="btn btn-primary" onClick={handleCreateListing}>Post Job</button>
+                  <button
+                    className="btn btn-outline-secondary"
+                    onClick={() => setShowCreateModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button className="btn btn-primary" onClick={handleCreateListing}>
+                    Post Job
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Message Modal */}
         {messageModal && (
-          <div className="modal fade show" style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div
+            className="modal fade show"
+            style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
+          >
             <div className="modal-dialog modal-dialog-centered">
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title">Message {messageModal.users?.first_name}</h5>
-                  <button type="button" className="btn-close" onClick={() => setMessageModal(null)} />
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setMessageModal(null)}
+                  />
                 </div>
+
                 <div className="modal-body">
-                  <p className="text-muted small mb-2">Re: <strong>{messageModal.title}</strong></p>
+                  <p className="text-muted small mb-2">
+                    Re: <strong>{messageModal.title}</strong>
+                  </p>
                   <label className="form-label">Message</label>
                   <textarea
                     className="form-control"
                     rows={4}
                     value={messageBody}
-                    onChange={e => setMessageBody(e.target.value)}
+                    onChange={(e) => setMessageBody(e.target.value)}
                   />
                 </div>
+
                 <div className="modal-footer">
-                  <button className="btn btn-outline-secondary" onClick={() => setMessageModal(null)}>Cancel</button>
+                  <button
+                    className="btn btn-outline-secondary"
+                    onClick={() => setMessageModal(null)}
+                  >
+                    Cancel
+                  </button>
                   <button
                     className="btn btn-primary"
                     disabled={!messageBody.trim() || sendingMessage}
@@ -445,19 +623,28 @@ export default function Jobs() {
           </div>
         )}
 
-        {/* Hire Modal */}
         {hireModal && (
-          <div className="modal fade show" style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div
+            className="modal fade show"
+            style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
+          >
             <div className="modal-dialog modal-dialog-centered">
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title">Hire — {hireModal.title}</h5>
-                  <button type="button" className="btn-close" onClick={() => setHireModal(null)} />
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setHireModal(null)}
+                  />
                 </div>
+
                 <div className="modal-body">
                   <p className="text-muted small mb-3">
-                    Posted by {hireModal.users?.first_name} {hireModal.users?.last_name} &middot; Listed at ${hireModal.price_amount} ({hireModal.pricing_type})
+                    Posted by {hireModal.users?.first_name} {hireModal.users?.last_name} · Listed
+                    at ${hireModal.price_amount} ({hireModal.pricing_type})
                   </p>
+
                   <div className="row g-3">
                     <div className="col-12">
                       <label className="form-label">Agreed Price ($) *</label>
@@ -466,18 +653,24 @@ export default function Jobs() {
                         type="number"
                         min="0"
                         value={hireForm.price}
-                        onChange={e => setHireForm(prev => ({ ...prev, price: e.target.value }))}
+                        onChange={(e) =>
+                          setHireForm((prev) => ({ ...prev, price: e.target.value }))
+                        }
                       />
                     </div>
+
                     <div className="col-md-6">
                       <label className="form-label">Start Date *</label>
                       <input
                         className="form-control"
                         type="date"
                         value={hireForm.startDate}
-                        onChange={e => setHireForm(prev => ({ ...prev, startDate: e.target.value }))}
+                        onChange={(e) =>
+                          setHireForm((prev) => ({ ...prev, startDate: e.target.value }))
+                        }
                       />
                     </div>
+
                     <div className="col-md-6">
                       <label className="form-label">End Date *</label>
                       <input
@@ -485,13 +678,21 @@ export default function Jobs() {
                         type="date"
                         value={hireForm.endDate}
                         min={hireForm.startDate || undefined}
-                        onChange={e => setHireForm(prev => ({ ...prev, endDate: e.target.value }))}
+                        onChange={(e) =>
+                          setHireForm((prev) => ({ ...prev, endDate: e.target.value }))
+                        }
                       />
                     </div>
                   </div>
                 </div>
+
                 <div className="modal-footer">
-                  <button className="btn btn-outline-secondary" onClick={() => setHireModal(null)}>Cancel</button>
+                  <button
+                    className="btn btn-outline-secondary"
+                    onClick={() => setHireModal(null)}
+                  >
+                    Cancel
+                  </button>
                   <button
                     className="btn btn-primary"
                     disabled={!hireForm.price || !hireForm.startDate || !hireForm.endDate || hiring}
@@ -504,7 +705,6 @@ export default function Jobs() {
             </div>
           </div>
         )}
-
       </div>
     </>
   );
