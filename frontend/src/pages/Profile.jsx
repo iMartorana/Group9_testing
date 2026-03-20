@@ -61,7 +61,7 @@ export default function Profile() {
           bio: profileData.bio || "",
         });
 
-        const userSkillIds = await getProfileSkills(profileData.student_id);
+        const userSkillIds = await getProfileSkills(profileData.user_id);
         setSelectedSkills(userSkillIds);
       } else {
         setForm({
@@ -153,7 +153,7 @@ export default function Profile() {
         return;
       }
 
-      await saveProfileSkills(updatedProfile.student_id, selectedSkills);
+      await saveProfileSkills(updatedProfile.user_id, selectedSkills);
 
       setProfile(updatedProfile);
       setSuccess("Profile changes saved successfully.");

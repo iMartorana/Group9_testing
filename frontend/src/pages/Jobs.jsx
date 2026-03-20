@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import {
   getUserByEmail,
   getAllSkills,
+  getSkillsForStudent,
   getActiveListings,
   createListing,
   addSkillToListing,
@@ -18,6 +19,7 @@ export default function Jobs() {
   const [role, setRole] = useState(null);
   const [listings, setListings] = useState([]);
   const [skills, setSkills] = useState([]);
+  const [studentSkills, setStudentSkills] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hiring, setHiring] = useState(false);
   const [hireModal, setHireModal] = useState(null);
@@ -56,6 +58,16 @@ export default function Jobs() {
       const { data: skillData, error: skillError } = await getAllSkills();
       if (skillError) throw skillError;
       setSkills(skillData || []);
+
+      if (userData.role === "student") {
+        const { data: studentSkillData, error: studentSkillError } = await getSkillsForStudent(userData.user_id);
+        if (!studentSkillError && studentSkillData) {
+          const profileSkills = studentSkillData
+            .map((row) => row.skills)
+            .filter(Boolean);
+          setStudentSkills(profileSkills);
+        }
+      }
     } catch (err) {
       console.error("Failed to fetch data:", err);
     } finally {
@@ -361,25 +373,32 @@ export default function Jobs() {
                     </div>
                     <div className="col-12">
                       <label className="form-label">Your Skills</label>
-                      <div className="d-flex flex-wrap gap-2">
-                        {skills.map(s => (
-                          <div key={s.skill_id}>
-                            <input
-                              type="checkbox"
-                              className="btn-check"
-                              id={`skill-${s.skill_id}`}
-                              checked={newListing.selectedSkills.includes(s.skill_id)}
-                              onChange={() => toggleSkill(s.skill_id)}
-                            />
-                            <label
-                              className={`btn btn-sm ${newListing.selectedSkills.includes(s.skill_id) ? "btn-primary" : "btn-outline-primary"}`}
-                              htmlFor={`skill-${s.skill_id}`}
-                            >
-                              {s.name}
-                            </label>
-                          </div>
-                        ))}
-                      </div>
+                      {studentSkills.length === 0 ? (
+                        <p className="text-muted small mb-0">
+                          You haven't added any skills to your profile yet.{" "}
+                          <a href="/profile">Go to your profile</a> to add skills first.
+                        </p>
+                      ) : (
+                        <div className="d-flex flex-wrap gap-2">
+                          {studentSkills.map(s => (
+                            <div key={s.skill_id}>
+                              <input
+                                type="checkbox"
+                                className="btn-check"
+                                id={`skill-${s.skill_id}`}
+                                checked={newListing.selectedSkills.includes(s.skill_id)}
+                                onChange={() => toggleSkill(s.skill_id)}
+                              />
+                              <label
+                                className={`btn btn-sm ${newListing.selectedSkills.includes(s.skill_id) ? "btn-primary" : "btn-outline-primary"}`}
+                                htmlFor={`skill-${s.skill_id}`}
+                              >
+                                {s.name}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
