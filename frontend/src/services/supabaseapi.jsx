@@ -109,8 +109,7 @@ export async function insertUser({ email, role, first_name, last_name, phone, bi
   return await supabase
     .from("users")
     .insert(
-      { email, role, first_name, last_name, phone, bio },
-      { onConflict: "email" }
+      { email: email, role: role, first_name: first_name, last_name: last_name, phone: phone, bio: bio }
     )
     .select()
     .single();

@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
-import { createUser, getUserByEmail } from "./services/userServices";
+//import { createUser, getUserByEmail } from "./services/userServices";
+import { getUserByEmail, insertUser } from "./services/supabaseapi";
 import { useEffect } from "react";
 
 import Login from "./pages/login";
@@ -18,6 +19,7 @@ import Messages from "./pages/Messages";
 The component that acts as the basis of the project
 Essentially renders all other parts of the project
 Does a check to see if the user is authenticated to allow access through the RequireAuth component
+Creates users in supabase
 */
 
 //R=Check if a user is authenticated through auth0
@@ -41,11 +43,13 @@ export default function App() {
     const syncUser = async () => {
       if (isLoading || !isAuthenticated || !user?.email) return;
 
-      const existingUser = await getUserByEmail(user.email);
+      //This wasn't working because the userServices only returns the data part. Needed to
+      //update the checks accordingly
+      const {existingUserData, existingUserError} = await getUserByEmail(user.email);
       const savedRole = localStorage.getItem("signup_role");
 
       console.log("signup_role from localStorage:", savedRole);
-
+    /*
       if (!existingUser) {
         await createUser({
           email: user.email,
@@ -54,7 +58,19 @@ export default function App() {
           role: savedRole || "client",
         });
       }
-
+    */
+     
+     if (!existingUserData) {
+        await insertUser({
+          email: user.email,
+          role: savedRole || "client",
+          first_name: user.given_name || "",
+          last_name: user.family_name || "",
+          phone: "0000000000",
+          bio: "",
+        });
+      }
+      
       localStorage.removeItem("signup_role");
     };
 
