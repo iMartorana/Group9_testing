@@ -93,6 +93,29 @@ export async function upsertUser({ email, role, first_name, last_name, phone, bi
     .single();
 }
 
+/**
+ * Insert a new user row, or update it if the email already exists.
+ * Pass any subset of: { email, role, first_name, last_name, phone, bio }
+ * This isn't strictly necessary, but it's meant to be an additional security level
+ * in case some loophole to create an account with the same email is found
+ *
+ * Example – create on first login:
+ *   await upsertUser({ email: user.email, role: "client" });
+ *
+ * Example – update profile fields:
+ *   await upsertUser({ email: user.email, first_name: "Rory", bio: "..." });
+ */
+export async function insertUser({ email, role, first_name, last_name, phone, bio }){
+  return await supabase
+    .from("users")
+    .insert(
+      { email, role, first_name, last_name, phone, bio },
+      { onConflict: "email" }
+    )
+    .select()
+    .single();
+}
+
 /** Update specific profile fields for a user (by user_id). */
 export async function updateUserProfile(userId, fields) {
   return await supabase
