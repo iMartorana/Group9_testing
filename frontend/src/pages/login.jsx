@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
-
+/*
+Login page
+Handles sign up role selection
+Uses PostLoginRedirect to figure out where to send the user
+Auth0 redirects automatically
+Basic account information uses localStorage. Functions can be found in roleStore.js
+*/
 export default function Login() {
   const { loginWithRedirect, isLoading, error } = useAuth0();
 

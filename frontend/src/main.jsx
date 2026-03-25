@@ -3,7 +3,12 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App.jsx";
 import { Auth0Provider } from "@auth0/auth0-react";
 import "bootstrap/dist/css/bootstrap.min.css";
-
+/*
+Defines components used in the project
+Mainly used for auth0.
+Technically this is the main file by running the App component,
+but App.jsx contains all the base information
+*/
 createRoot(document.getElementById("root")).render(
   <Auth0Provider
     domain="dev-6qyiyqksmtwrjpbi.us.auth0.com"

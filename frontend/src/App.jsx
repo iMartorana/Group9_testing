@@ -14,7 +14,13 @@ import Bookings from "./pages/Bookings";
 import Payment from "./pages/Payment";
 import Reviews from "./pages/Reviews";
 import Messages from "./pages/Messages";
+/*
+The component that acts as the basis of the project
+Essentially renders all other parts of the project
+Does a check to see if the user is authenticated to allow access through the RequireAuth component
+*/
 
+//R=Check if a user is authenticated through auth0
 function RequireAuth({ children }) {
   const { isAuthenticated, isLoading } = useAuth0();
   const location = useLocation();
@@ -27,7 +33,7 @@ function RequireAuth({ children }) {
     <Navigate to="/" replace state={{ returnTo: location.pathname + location.search }} />
   );
 }
-
+//App function that returns whatever assets should be loaded
 export default function App() {
   const { error, isAuthenticated, isLoading, user } = useAuth0();
 
