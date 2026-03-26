@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import Navbar from "../components/Navbar";
-
+import {
+  getActiveSkills,
+  getProfileSkills,
+  saveProfileSkills,
+} from "../services/skillService";
 //import { getProfileByEmail, updateProfile } from "../services/profileService";
 import { getUserByEmail, updateUser, updateUserProfile } from "../services/supabaseapi"
 
