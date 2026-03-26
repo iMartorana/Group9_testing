@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import Navbar from "../components/Navbar";
-import { getProfileByEmail, updateProfile } from "../services/profileService";
+//import { getProfileByEmail, updateProfile } from "../services/profileService";
+import { getUserByEmail, updateUser, updateUserProfile } from "../services/supabaseapi"
 
 const BIO_MAX = 1024;
 
@@ -32,8 +33,10 @@ export default function Profile() {
       if (!user?.email) return;
 
       try {
-        const profileData = await getProfileByEmail(user.email);
-  
+        
+        //const profileData = await getProfileByEmail(user.email);
+        //Could add an error message of "Couldn't retrieve profile info" and block changes
+        const { data: profileData } = await getUserByEmail(user.email);
 
         if (profileData) {
           setForm({
@@ -119,20 +122,26 @@ export default function Profile() {
       const nameParts = form.name.trim().split(" ");
       const firstName = nameParts[0] || "";
       const lastName = nameParts.slice(1).join(" ");
-      
+      /*
       const updatedProfile = await updateProfile(user.email, {
         first_name: firstName,
         last_name: lastName,
         phone: form.phone,
         bio: form.bio,
       });
-      
-      /*
-      if (!updatedProfile) {
+      */
+      const {data : updatedProfile} = await updateUser(user.email, {
+        first_name: firstName,
+        last_name: lastName,
+        phone: form.phone,
+        bio: form.bio,
+        updated_at: new Date().toISOString(),
+      });
+      if(!updatedProfile){
         setError("Could not save profile changes.");
         return;
       }
-     */
+
       setProfile(updatedProfile);
       setSuccess("Profile changes saved successfully.");
     } catch (err) {
