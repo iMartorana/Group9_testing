@@ -33,7 +33,7 @@ export default function Profile() {
 
       try {
         const profileData = await getProfileByEmail(user.email);
-        setProfile(profileData);
+  
 
         if (profileData) {
           setForm({
@@ -75,7 +75,7 @@ export default function Profile() {
 
     setForm((prev) => ({ ...prev, [name]: value }));
   };
-
+  //Really I can't tell if this even works. We don't have anywhere to save this
   const handleImageChange = (e) => {
     setError("");
     setSuccess("");
@@ -119,19 +119,20 @@ export default function Profile() {
       const nameParts = form.name.trim().split(" ");
       const firstName = nameParts[0] || "";
       const lastName = nameParts.slice(1).join(" ");
-
+      
       const updatedProfile = await updateProfile(user.email, {
         first_name: firstName,
         last_name: lastName,
         phone: form.phone,
         bio: form.bio,
       });
-
+      
+      /*
       if (!updatedProfile) {
         setError("Could not save profile changes.");
         return;
       }
-
+     */
       setProfile(updatedProfile);
       setSuccess("Profile changes saved successfully.");
     } catch (err) {

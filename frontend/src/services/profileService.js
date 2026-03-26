@@ -1,11 +1,8 @@
 import { supabase} from "../supabaseconfig";
+import { getUserByEmail } from "./supabaseapi";
 
 export async function getProfileByEmail(email) {
-  const { data, error } = await supabase
-    .from("users")
-    .select("*")
-    .eq("email", email)
-    .single();
+  const { data, error } = await getUserByEmail(email);
 
   if (error) {
     console.error(error);

@@ -125,6 +125,15 @@ export async function updateUserProfile(userId, fields) {
     .single();
 }
 
+export async function updateUser(email, updates) {
+  return await supabase
+    .from("users")
+    .update(updates)
+    .eq("email", email)
+    .select()
+    .single();
+}
+
 // ─────────────────────────────────────────────────
 // SKILLS
 // ─────────────────────────────────────────────────
