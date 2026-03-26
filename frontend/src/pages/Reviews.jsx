@@ -16,42 +16,83 @@ export default function Reviews() {
   const { user } = useAuth0();
 
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
-  const studentId = params.get("studentId");
+  const studentIdFromUrl = params.get("studentId");
 
   const [dbUser, setDbUser] = useState(null);
   const [student, setStudent] = useState(null);
+  const [activeStudentId, setActiveStudentId] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [summary, setSummary] = useState({ avg: 0, count: 0 });
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
-    if (!user?.email || !studentId) {
+    if (!user?.email) {
       setLoading(false);
       return;
     }
 
     setLoading(true);
 
-    const { data: currentUser } = await getUserByEmail(user.email);
+    const { data: currentUser, error: userError } = await getUserByEmail(user.email);
+    if (userError) {
+      console.error("Failed to load current user:", userError);
+      setLoading(false);
+      return;
+    }
+
     setDbUser(currentUser || null);
 
-    const { data: studentData } = await getUserById(studentId);
+    let resolvedStudentId = studentIdFromUrl;
+
+    if (!resolvedStudentId && currentUser?.role === "student") {
+      resolvedStudentId = currentUser.user_id;
+    }
+
+    if (!resolvedStudentId) {
+      setActiveStudentId(null);
+      setStudent(null);
+      setReviews([]);
+      setSummary({ avg: 0, count: 0 });
+      setLoading(false);
+      return;
+    }
+
+    setActiveStudentId(Number(resolvedStudentId));
+
+    const { data: studentData, error: studentError } = await getUserById(resolvedStudentId);
+    if (studentError) {
+      console.error("Failed to load student:", studentError);
+    }
     setStudent(studentData || null);
 
-    const [{ data: reviewList }, { data: reviewSummary }] = await Promise.all([
-      getReviewsForStudent(studentId),
-      getReviewSummary(studentId),
+    const [
+      { data: reviewList, error: reviewError },
+      { data: reviewSummary, error: summaryError },
+    ] = await Promise.all([
+      getReviewsForStudent(resolvedStudentId),
+      getReviewSummary(resolvedStudentId),
     ]);
 
-    setReviews(reviewList || []);
-    setSummary(reviewSummary || { avg: 0, count: 0 });
+    if (reviewError) {
+      console.error("Failed to load reviews:", reviewError);
+      setReviews([]);
+    } else {
+      setReviews(reviewList || []);
+    }
+
+    if (summaryError) {
+      console.error("Failed to load review summary:", summaryError);
+      setSummary({ avg: 0, count: 0 });
+    } else {
+      setSummary(reviewSummary || { avg: 0, count: 0 });
+    }
 
     setLoading(false);
   };
 
   useEffect(() => {
     load();
-  }, [user, studentId]);
+  }, [user, studentIdFromUrl]);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   return (
@@ -60,10 +101,14 @@ export default function Reviews() {
       <Container className="py-4">
         <h2 className="mb-3">Ratings & Reviews</h2>
 
-        {!studentId ? (
+        {loading ? (
+          <div>Loading...</div>
+        ) : !activeStudentId ? (
           <Card className="shadow-sm">
             <Card.Body>
-              Select a student from the Jobs page to view reviews.
+              {dbUser?.role === "client"
+                ? "Open a student's reviews from the Jobs page."
+                : "No reviews available."}
             </Card.Body>
           </Card>
         ) : loading ? (
@@ -77,7 +122,7 @@ export default function Reviews() {
                     <strong>Student:</strong>{" "}
                     {student
                       ? `${student.first_name || ""} ${student.last_name || ""}`.trim()
-                      : `User #${studentId}`}
+                      : `User #${activeStudentId}`}
                   </div>
                   <div style={{ opacity: 0.75 }}>
                     {summary.count} review{summary.count === 1 ? "" : "s"}
@@ -92,15 +137,15 @@ export default function Reviews() {
             {dbUser?.role === "client" && (
               <ReviewForm
                 reviewerUserId={dbUser.user_id}
-                revieweeUserId={Number(studentId)}
+                revieweeUserId={activeStudentId}
                 onSubmitted={load}
               />
             )}
 
-            {dbUser?.role !== "client" && (
+            {dbUser?.role === "student" && (
               <Card className="mb-3 shadow-sm">
                 <Card.Body className="text-muted">
-                  Only clients can leave reviews.
+                  These are the reviews clients have left for you.
                 </Card.Body>
               </Card>
             )}

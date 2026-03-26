@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import Navbar from "../components/Navbar";
+
 //import { getProfileByEmail, updateProfile } from "../services/profileService";
 import { getUserByEmail, updateUser, updateUserProfile } from "../services/supabaseapi"
+
 
 const BIO_MAX = 1024;
 
@@ -15,6 +17,8 @@ function formatPhone(digits) {
 
 export default function Profile() {
   const { user } = useAuth0();
+  const [allSkills, setAllSkills] = useState([]);
+  const [selectedSkills, setSelectedSkills] = useState([]);
 
   const [form, setForm] = useState({
     name: "",
@@ -22,6 +26,14 @@ export default function Profile() {
     phone: "",
     bio: "",
   });
+
+  const handleSkillToggle = (skillId) => {
+    setSelectedSkills((prev) =>
+      prev.includes(skillId)
+        ? prev.filter((id) => id !== skillId)
+        : [...prev, skillId]
+    );
+  };
 
   const [previewUrl, setPreviewUrl] = useState("");
   const [error, setError] = useState("");
@@ -45,6 +57,14 @@ export default function Profile() {
             phone: profileData.phone || "",
             bio: profileData.bio || "",
           });
+
+          if (profileData.role === "student") {
+            const skillsData = await getActiveSkills();
+            setAllSkills(skillsData);
+
+            const userSkillIds = await getProfileSkills(profileData.user_id);
+            setSelectedSkills(userSkillIds);
+          }
         } else {
           setForm({
             name: user.name || "",
@@ -142,6 +162,10 @@ export default function Profile() {
         return;
       }
 
+      if (updatedProfile.role === "student") {
+        await saveProfileSkills(updatedProfile.user_id, selectedSkills);
+      }
+
       setProfile(updatedProfile);
       setSuccess("Profile changes saved successfully.");
     } catch (err) {
@@ -149,6 +173,8 @@ export default function Profile() {
       setError("Could not save profile changes.");
     }
   };
+
+  const isStudent = profile?.role === "student";
 
   return (
     <>
@@ -188,7 +214,40 @@ export default function Profile() {
             </div>
           </div>
 
-          <div className="col-lg-8">
+          {isStudent && (
+            <div className="col-lg-8">
+              <div className="card shadow-sm">
+                <div className="card-body">
+                  <h5 className="card-title mb-3">Skills</h5>
+
+                  {allSkills.length === 0 ? (
+                    <p className="text-muted small mb-0">No skills available.</p>
+                  ) : (
+                    <div className="d-flex flex-wrap gap-2">
+                      {allSkills.map((skill) => {
+                        const isSelected = selectedSkills.includes(skill.skill_id);
+
+                        return (
+                          <button
+                            key={skill.skill_id}
+                            type="button"
+                            className={`btn ${
+                              isSelected ? "btn-primary" : "btn-outline-primary"
+                            }`}
+                            onClick={() => handleSkillToggle(skill.skill_id)}
+                          >
+                            {skill.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="col-lg-20">
             <div className="card shadow-sm">
               <div className="card-body">
                 <h5 className="card-title mb-3">Edit Profile Details</h5>
@@ -197,7 +256,7 @@ export default function Profile() {
                 {success && <div className="alert alert-success">{success}</div>}
 
                 <form onSubmit={handleSave}>
-                  <div className="row g-3">
+                  <div className="row g-20">
                     <div className="col-md-6">
                       <label className="form-label">Full Name</label>
                       <input
@@ -250,7 +309,7 @@ export default function Profile() {
                       </div>
                     </div>
 
-                    <div className="col-12">
+                    <div className="col-12 mt-2">
                       <button type="submit" className="btn btn-primary px-4">
                         Save Changes
                       </button>
