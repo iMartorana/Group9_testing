@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
 import { getAllUsers, createConversation, sendMessage } from "../../services/supabaseapi";
-
+/*
+Component for initializing conversations and sending an initial method
+NOTE: Look over the getAllUsers part for establishing conversations
+Likely want a more specialized api call for this while restricting the number
+of users retrieved to ones with bookings
+*/
 export default function NewConversationModal({ dbUser, onClose, onCreated }) {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState("");
@@ -11,6 +16,12 @@ export default function NewConversationModal({ dbUser, onClose, onCreated }) {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
+        /*
+        Gets all users and attempts to use a filter to limit the number. Only filters self
+        May want to implement a getManyUsers function in the future
+        Best option is to only be able to message from bookings
+        Does not provide an in app error
+        */
         const { data, error } = await getAllUsers();
         if (error) throw error;
         setUsers((data || []).filter(u => u.user_id !== dbUser.user_id));
@@ -29,7 +40,7 @@ export default function NewConversationModal({ dbUser, onClose, onCreated }) {
     setSending(true);
 
     try {
-      // Create conversation
+      // Create conversation - alert error handling. Minimal
       const { data: convo, error: convoError } = await createConversation({
         initiatorUserId: dbUser.user_id,
         recipientUserId: parseInt(selectedUser),
@@ -37,7 +48,7 @@ export default function NewConversationModal({ dbUser, onClose, onCreated }) {
       if (convoError) throw convoError;
       if (!convo?.conversation_id) throw new Error("No conversation ID returned");
 
-      // Send first message
+      // Send first message - alert error handling. Minimal
       const { error: msgError } = await sendMessage({
         conversationId: convo.conversation_id,
         senderUserId: dbUser.user_id,

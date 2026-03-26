@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
-
+/*
+Login page
+Handles sign up role selection
+Uses PostLoginRedirect to figure out where to send the user
+Auth0 redirects automatically
+Basic account information uses localStorage. Functions can be found in roleStore.js
+*/
 export default function Login() {
   const { loginWithRedirect, isLoading, error } = useAuth0();
 
@@ -12,7 +18,7 @@ export default function Login() {
   };
 
   const openSignup = () => {
-    setRole("");
+    setRole("");//Hook variable. Used to remember for account creation in PostLoginRedirect
     setShowRoleModal(true);
   };
 
@@ -20,7 +26,7 @@ export default function Login() {
     if (!role) return;
 
     // store role locally for later use
-    localStorage.setItem("signup_role", role);
+    localStorage.setItem("signup_role", role);//Honestly can't tell if this is redundant. I don't think so because of continueSignup
 
     await loginWithRedirect({
       authorizationParams: { screen_hint: "signup" },

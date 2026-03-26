@@ -1,6 +1,8 @@
 import { Card } from "react-bootstrap";
 import RatingStars from "./RatingStars";
-
+/*
+Displays ratings. Uses the RatingsStars file to format the visual stars
+*/
 export default function ReviewList({ reviews = [] }) {
   if (!reviews.length) {
     return (
