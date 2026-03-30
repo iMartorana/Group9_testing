@@ -309,7 +309,7 @@ export default function Jobs() {
                 <label className="form-label">Location</label>
                 <input
                   className="form-control"
-                  placeholder="e.g. Milwaukee"
+                  placeholder="e.g. Milwaukee, WI"
                   value={locationFilter}
                   onChange={(e) => setLocationFilter(e.target.value)}
                 />
@@ -476,6 +476,12 @@ export default function Jobs() {
 
                     <div className="col-md-6">
                       <label className="form-label">Location</label>
+                      <span
+                          title="Use precise city name with state initials, Eg: 'Oak Creek, WI' not 'Milwaukee'."
+                          style={{ cursor: "help" }}
+                        >
+                           *
+                        </span>
                       <input
                         className="form-control"
                         placeholder="e.g. Milwaukee, WI or Remote"

@@ -41,40 +41,40 @@ export default function Navbar() {
           <Nav className="ms-auto align-items-lg-center gap-lg-2">
             <Nav.Link
               as={Link}
-              to="/AdminDashboard"
-              className={isActive("/AdminDashboard") ? "fw-bold text-primary" : "fw-semibold"}
+              to={getHomePath()}
+              className={isActive(getHomePath()) ? "fw-bold text-primary" : "fw-semibold"}
             >
               Home
             </Nav.Link>
 
             <Nav.Link
               as={Link}
-              to="/Jobs"
-              className={isActive("/Jobs") ? "fw-bold text-primary" : "fw-semibold"}
+              to="/jobs"
+              className={isActive("/jobs") ? "fw-bold text-primary" : "fw-semibold"}
             >
               Jobs
             </Nav.Link>
 
             <Nav.Link
               as={Link}
-              to="/Messages"
-              className={isActive("/Messages") ? "fw-bold text-primary" : "fw-semibold"}
+              to="/messages"
+              className={isActive("/messages") ? "fw-bold text-primary" : "fw-semibold"}
             >
               Messages
             </Nav.Link>
 
             <Nav.Link
               as={Link}
-              to="/Bookings"
-              className={isActive("/Bookings") ? "fw-bold text-primary" : "fw-semibold"}
+              to="/bookings"
+              className={isActive("/bookings") ? "fw-bold text-primary" : "fw-semibold"}
             >
               Bookings
             </Nav.Link>
 
             <Nav.Link
               as={Link}
-              to="/Payment"
-              className={isActive("/Payment") ? "fw-bold text-primary" : "fw-semibold"}
+              to="/payment"
+              className={isActive("/payment") ? "fw-bold text-primary" : "fw-semibold"}
             >
               Payment
             </Nav.Link>
