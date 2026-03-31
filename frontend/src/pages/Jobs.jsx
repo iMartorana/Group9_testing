@@ -13,6 +13,11 @@ import {
   createConversation,
   sendMessage,
 } from "../services/supabaseapi";
+/*
+Component to create and display listings.
+Additionally initiates booking requests and sends initial messages
+Uses alert popups for error messages, and the professor wasn't a fan of them
+*/
 
 export default function Jobs() {
   const navigate = useNavigate();
@@ -59,13 +64,20 @@ export default function Jobs() {
 
   const fetchData = async () => {
     try {
+      /*
+      Get user for later use
+      No in app error handling
+      */
       const { data: userData, error: userError } = await getUserByEmail(user.email);
       if (userError) throw userError;
       setDbUser(userData);
       setRole(userData.role);
 
       await fetchListings();
-
+      /*
+      Get all skills. Can be matched with numbers later
+      No in app error handling
+      */
       const { data: skillData, error: skillError } = await getAllSkills();
       if (skillError) throw skillError;
       setSkills(skillData || []);
@@ -87,6 +99,9 @@ export default function Jobs() {
   };
 
   const fetchListings = async () => {
+    /*
+    Get active listings. No in app error handling
+    */
     const { data, error } = await getActiveListings();
     if (error) throw error;
     setListings(data || []);
@@ -157,6 +172,10 @@ export default function Jobs() {
 
     setHiring(true);
     try {
+      /*
+      Create a booking request based on entered information
+      Does have an in app error message, but it's the alert thing
+      */
       const { error } = await createBookingRequest({
         customer_id: dbUser.user_id,
         listing_id: hireModal.listing_id,
@@ -192,6 +211,10 @@ export default function Jobs() {
 
     setSendingMessage(true);
     try {
+      /*
+      Send a default message upon creating a booking request
+      Has an error popup
+      */
       const { data: convo, error: convoError } = await createConversation({
         initiatorUserId: dbUser.user_id,
         recipientUserId: recipientId,
@@ -223,6 +246,10 @@ export default function Jobs() {
     }
 
     try {
+      /*
+      Create listing
+      Has an error popup
+      */
       const { data: created, error: listingError } = await createListing({
         student_id: dbUser.user_id,
         title: newListing.title,

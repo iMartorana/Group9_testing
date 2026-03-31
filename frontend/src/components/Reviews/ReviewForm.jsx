@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { Card, Form, Button, Alert } from "react-bootstrap";
 import { upsertReview } from "../../services/supabaseapi";
-
+/*
+Handles the review form. Takes entered info to add the review to the database
+Does not handle booking id properly. Check back here
+*/
 export default function ReviewForm({
   reviewerUserId,
   revieweeUserId,
@@ -22,7 +25,11 @@ export default function ReviewForm({
     if (!revieweeUserId) return setErr("Missing student id.");
 
     setSaving(true);
-
+    /*
+    Upserts a review. 
+    The bookingId part needs to be fixed
+    I think this does have an in app error message
+    */
     const { error } = await upsertReview({
       bookingId: null,
       reviewerUserId,

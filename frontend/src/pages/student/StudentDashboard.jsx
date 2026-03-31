@@ -9,6 +9,11 @@ import {
   getReviewSummary,
 } from "../../services/supabaseapi";
 
+/*
+Student dashboard. The most complicated one
+Includes snapshots of reviews and links to other views
+*/
+
 export default function StudentDashboard() {
   const { user } = useAuth0();
   const [profile, setProfile] = useState(null);
@@ -24,7 +29,10 @@ export default function StudentDashboard() {
       if (saved) {
         setProfile(JSON.parse(saved));
       }
-
+      /*
+      Get user to get other info for the dashboard
+      No in app error message. May be a worthwhile change here
+      */
       const { data: userData, error: userError } = await getUserByEmail(user.email);
       if (userError || !userData) {
         console.error("Failed to load user data:", userError);
@@ -32,7 +40,10 @@ export default function StudentDashboard() {
       }
 
       setDbUser(userData);
-
+      /*
+      Get reviews for the summary
+      Does not appear to have any error output
+      */
       const [{ data: reviewList, error: reviewError }, { data: summaryData, error: summaryError }] =
         await Promise.all([
           getReviewsForStudent(userData.user_id),
