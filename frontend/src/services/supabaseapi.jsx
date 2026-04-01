@@ -56,14 +56,11 @@ export async function getAllUsers() {
 
 /** Fetch a single user by email. Used after Auth0 login to load profile + role. */
 export async function getUserByEmail(email) {
-  const { data, error } = await supabase
+  return await supabase
     .from("users")
     .select("*")
     .eq("email", email)
     .single();
-
-  if (error) throw error;
-  return data;
 }
 
 /** Fetch a single user by their numeric user_id. */
@@ -120,15 +117,12 @@ export async function insertUser({ email, role, first_name, last_name, phone, bi
 
 /** Update specific profile fields for a user (by user_id). */
 export async function updateUserProfile(userId, fields) {
-  const { data, error } = await supabase
+  return await supabase
     .from("users")
     .update({ ...fields, updated_at: new Date().toISOString() })
     .eq("user_id", userId)
     .select()
     .single();
-
-  if (error) throw error;
-  return data;
 }
 
 export async function updateUser(email, updates) {

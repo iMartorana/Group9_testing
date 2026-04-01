@@ -68,7 +68,9 @@ export default function Jobs() {
       Get user for later use
       No in app error handling
       */
-      const userData = await getUserByEmail(user.email);
+      const { data: userData, error: userError } = await getUserByEmail(user.email);
+      if (userError) throw userError;
+
       setDbUser(userData);
       setRole(userData.role);
 

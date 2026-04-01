@@ -48,7 +48,8 @@ export default function Profile() {
     if (!user?.email) return;
 
     try {
-      const profileData = await getUserByEmail(user.email);
+      const { data: profileData, error } = await getUserByEmail(user.email);
+      if (error) throw error;
       setProfile(profileData);
 
       const skillsData = await getActiveSkills();
@@ -137,31 +138,6 @@ export default function Profile() {
       return;
     }
 
-    // try {
-    //   const nameParts = form.name.trim().split(" ");
-    //   const firstName = nameParts[0] || "";
-    //   const lastName = nameParts.slice(1).join(" ");
-
-    //   const updatedProfile = await updateUserProfile(user.email, {
-    //     first_name: firstName,
-    //     last_name: lastName,
-    //     phone: form.phone,
-    //     bio: form.bio,
-    //   });
-
-    //   if (!updatedProfile) {
-    //     setError("Could not save profile changes.");
-    //     return;
-    //   }
-
-    //   await saveProfileSkills(updatedProfile.student_id, selectedSkills);
-
-    //   setProfile(updatedProfile);
-    //   setSuccess("Profile changes saved successfully.");
-    // } catch (err) {
-    //   console.error(err);
-    //   setError("Could not save profile changes.");
-    // }
     try {
       const nameParts = form.name.trim().split(" ");
       const firstName = nameParts[0] || "";
@@ -169,20 +145,30 @@ export default function Profile() {
 
       let updatedProfile;
 
-      try {
-        console.log("Calling updateUserProfile...");
-        updatedProfile = await updateUserProfile(profile.user_id, {
-          first_name: firstName,
-          last_name: lastName,
-          phone: form.phone,
-          bio: form.bio,
-        });
-        console.log("updatedProfile:", updatedProfile);
-      } catch (err) {
-        console.error("updateUserProfile failed:", err);
-        setError("updateUserProfile failed.");
-        return;
-      }
+try {
+  console.log("Calling updateUserProfile...");
+  const { data, error: updateError } = await updateUserProfile(profile.user_id, {
+    first_name: firstName,
+    last_name: lastName,
+    phone: form.phone,
+    bio: form.bio,
+  });
+
+  if (updateError) throw updateError;
+
+  updatedProfile = data;
+
+  if (!updatedProfile) {
+    setError("Could not save profile changes.");
+    return;
+  }
+
+  console.log("updatedProfile:", updatedProfile);
+} catch (err) {
+  console.error("updateUserProfile failed:", err);
+  setError("updateUserProfile failed.");
+  return;
+}
 
       if (!updatedProfile) {
         setError("Could not save profile changes.");
