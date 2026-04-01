@@ -13,7 +13,11 @@ import {
   createConversation,
   sendMessage,
 } from "../services/supabaseapi";
-
+/*
+Component to handle bookings. Very complicated
+Handles the basics of bookings like creating and getting
+Additionally covers some parts of messaging
+*/
 const STATUS_BADGE = {
   pending:   "bg-warning text-dark",
   accepted:  "bg-success",
@@ -56,6 +60,11 @@ export default function Bookings() {
 
   const fetchData = async () => {
     try {
+      /*
+      Get user for the following calls. 
+      Namely looks for the role
+      No in app error handling
+      */
       const { data: userData, error: userError } = await getUserByEmail(user.email);
       if (userError) throw userError;
       setDbUser(userData);
@@ -74,7 +83,13 @@ export default function Bookings() {
       setLoading(false);
     }
   };
-
+  /*
+  Getting booking requests for students
+  gets all bookings a client has made,
+  all bookings a student has received,
+  and all bookings a student has confirmed
+  No error handling
+  */
   const fetchStudentData = async (userId) => {
     const [sentRes, receivedRes, bookingsRes] = await Promise.all([
       getBookingRequestsByClient(userId),
@@ -85,7 +100,11 @@ export default function Bookings() {
     setReceivedRequests(receivedRes.data || []);
     setStudentBookings(bookingsRes.data || []);
   };
-
+  /*
+  Get booking requests for clients
+  Gets requests made and confirmed
+  No error handling
+  */
   const fetchClientData = async (userId) => {
     const [sentRes, bookingsRes] = await Promise.all([
       getBookingRequestsByClient(userId),
@@ -98,6 +117,7 @@ export default function Bookings() {
   const handleAction = async (requestId, status) => {
     setActionLoading(requestId + status);
     try {
+      //Update status of a booking. Doesn't appear to have an in app error handling
       const { error } = await updateBookingRequestStatus(requestId, status);
       if (error) throw error;
 
@@ -109,7 +129,11 @@ export default function Bookings() {
             const parsed = JSON.parse(req.note || "{}");
             if (parsed.agreed_price != null) agreedPrice = parsed.agreed_price;
           } catch { /* use listing price */ }
-
+          /*
+          Creating a booking if a request was accepted
+          The parsed part doesn't have a complete catch section
+          No in app error handling
+          */
           const { error: bookingError } = await createBooking({
             request_id:          req.request_id,
             customer_id:         req.customer_id,
@@ -141,6 +165,7 @@ export default function Bookings() {
     if (!cancelModal || !cancelReason.trim()) return;
     setCancelling(true);
     try {
+      //Cancel booking. No in app error handling
       const { error: cancelError } = await updateBookingStatus(cancelModal.bookings_id, "cancelled");
       if (cancelError) throw cancelError;
 
@@ -149,6 +174,10 @@ export default function Bookings() {
         : cancelModal.listings?.users?.user_id ?? null;
 
       if (recipientId) {
+        /*
+        Create a conversation to cancel a booking. Sends an automated message
+        Does not have an in app error handling
+        */
         const { data: convo, error: convoError } = await createConversation({
           initiatorUserId: dbUser.user_id,
           recipientUserId: recipientId,

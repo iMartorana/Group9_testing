@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../supabaseconfig";
 import { getMessagesForConversation, sendMessage } from "../../services/supabaseapi";
-
+/*
+Component for message view. Handles formatting of messages to send them
+*/
 export default function ConversationView({ dbUser, conversation }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
@@ -45,6 +47,10 @@ export default function ConversationView({ dbUser, conversation }) {
 
   const fetchMessages = async () => {
     try {
+      /*
+        Get messages given a conversation. Different from the List file just getting the conversation
+        Does not provide an in app error message
+      */
       const { data, error } = await getMessagesForConversation(conversation.conversation_id);
       if (error) throw error;
       setMessages(data || []);
@@ -74,6 +80,11 @@ export default function ConversationView({ dbUser, conversation }) {
     setSending(true);
 
     try {
+      /*
+      Send a message using the conversation id
+      Has some handling of errors to keep the message
+      I truly don't know what the alert function is. I think it's a popup
+      */
       const { error } = await sendMessage({
         conversationId: conversation.conversation_id,
         senderUserId: dbUser.user_id,

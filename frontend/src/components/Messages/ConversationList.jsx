@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import { getConversationsForUser  } from "../../services/supabaseapi";
+/*
+Component to get conversations and messages for a user
+*/
 
 export default function ConversationList({ dbUser, selectedConversation, onSelect }) {
   const [conversations, setConversations] = useState([]);
@@ -8,7 +11,11 @@ export default function ConversationList({ dbUser, selectedConversation, onSelec
   useEffect(() => {
     const fetchConversations = async () => {
       try {
-        // Fetch conversations that have messages involving this user
+        /*
+        Fetch conversations that have messages involving this user. Not sure if user_id is
+        properly implemented since the hook things are inconsistent.
+        Does not have an in app error pop up
+        */
         const { data, error } = await getConversationsForUser(dbUser.user_id);
         if (error) throw error;
         setConversations(data || []);

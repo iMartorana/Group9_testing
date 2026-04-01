@@ -6,12 +6,17 @@ import {
   getSignupRole,
   setRoleForEmail,
 } from "../providers/roleStore";
+/*
+Determine what to load after auth0 handles login
+Sign up automatically leads to login, so auth0 covers both
 
+Basic account information uses localStorage. Functions can be found in roleStore.js
+*/
 export default function PostLoginRedirect() {
   const navigate = useNavigate();
   const { user, isAuthenticated, isLoading } = useAuth0();
 
-  const ADMIN_EMAILS = ["test@uwm.edu"];
+  const ADMIN_EMAILS = ["test@uwm.edu"];//While not a password, is still somewhat risky
 
   useEffect(() => {
     const redirectUser = async () => {
@@ -33,7 +38,7 @@ export default function PostLoginRedirect() {
         const { data, error } = await getUserByEmail(email);
 
         if (!error && data?.role) {
-          setRoleForEmail(email, data.role);
+          setRoleForEmail(email, data.role);//localStorage set role
 
           if (data.role === "student") {
             navigate("/student/dashboard", { replace: true });
