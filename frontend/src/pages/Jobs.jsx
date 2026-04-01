@@ -73,6 +73,7 @@ export default function Jobs() {
       */
       const { data: userData, error: userError } = await getUserByEmail(user.email);
       if (userError) throw userError;
+
       setDbUser(userData);
       setRole(userData.role);
 
