@@ -6,7 +6,6 @@ import {
   getProfileSkills,
   saveProfileSkills,
 } from "../services/skillService";
-//import { getProfileByEmail, updateProfile } from "../services/profileService";
 import { getUserByEmail, updateUser, updateUserProfile } from "../services/supabaseapi"
 
 
@@ -32,12 +31,12 @@ export default function Profile() {
   });
 
   const handleSkillToggle = (skillId) => {
-    setSelectedSkills((prev) =>
-      prev.includes(skillId)
-        ? prev.filter((id) => id !== skillId)
-        : [...prev, skillId]
-    );
-  };
+  setSelectedSkills((prev) =>
+    prev.includes(skillId)
+      ? prev.filter((id) => id !== skillId)
+      : [...prev, skillId]
+  );
+};
 
   const [previewUrl, setPreviewUrl] = useState("");
   const [error, setError] = useState("");
@@ -45,48 +44,44 @@ export default function Profile() {
   const [profile, setProfile] = useState(null);
 
   useEffect(() => {
-    const loadProfile = async () => {
-      if (!user?.email) return;
+  const loadProfile = async () => {
+    if (!user?.email) return;
 
-      try {
-        
-        //const profileData = await getProfileByEmail(user.email);
-        //Could add an error message of "Couldn't retrieve profile info" and block changes
-        const { data: profileData } = await getUserByEmail(user.email);
+    try {
+      const profileData = await getUserByEmail(user.email);
+      setProfile(profileData);
 
-        if (profileData) {
-          setForm({
-            name: `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim(),
-            email: profileData.email || user.email || "",
-            phone: profileData.phone || "",
-            bio: profileData.bio || "",
-          });
+      const skillsData = await getActiveSkills();
+      setAllSkills(skillsData);
 
-          if (profileData.role === "student") {
-            const skillsData = await getActiveSkills();
-            setAllSkills(skillsData);
+      if (profileData) {
+        setForm({
+          name: `${profileData.first_name || ""} ${profileData.last_name || ""}`.trim(),
+          email: profileData.email || user.email || "",
+          phone: profileData.phone || "",
+          bio: profileData.bio || "",
+        });
 
-            const userSkillIds = await getProfileSkills(profileData.user_id);
-            setSelectedSkills(userSkillIds);
-          }
-        } else {
-          setForm({
-            name: user.name || "",
-            email: user.email || "",
-            phone: "",
-            bio: "",
-          });
-        }
-
-        setPreviewUrl(user.picture || "");
-      } catch (err) {
-        console.error(err);
-        setError("Could not load profile.");
+        const userSkillIds = await getProfileSkills(profileData.user_id);
+        setSelectedSkills(userSkillIds);
+      } else {
+        setForm({
+          name: user.name || "",
+          email: user.email || "",
+          phone: "",
+          bio: "",
+        });
       }
-    };
 
-    loadProfile();
-  }, [user]);
+      setPreviewUrl(user.picture || "");
+    } catch (err) {
+      console.error(err);
+      setError("Could not load profile.");
+    }
+  };
+
+  loadProfile();
+}, [user]);
 
   const handleChange = (e) => {
     setError("");
@@ -102,7 +97,7 @@ export default function Profile() {
 
     setForm((prev) => ({ ...prev, [name]: value }));
   };
-  //Really I can't tell if this even works. We don't have anywhere to save this
+
   const handleImageChange = (e) => {
     setError("");
     setSuccess("");
@@ -142,43 +137,82 @@ export default function Profile() {
       return;
     }
 
+    // try {
+    //   const nameParts = form.name.trim().split(" ");
+    //   const firstName = nameParts[0] || "";
+    //   const lastName = nameParts.slice(1).join(" ");
+
+    //   const updatedProfile = await updateUserProfile(user.email, {
+    //     first_name: firstName,
+    //     last_name: lastName,
+    //     phone: form.phone,
+    //     bio: form.bio,
+    //   });
+
+    //   if (!updatedProfile) {
+    //     setError("Could not save profile changes.");
+    //     return;
+    //   }
+
+    //   await saveProfileSkills(updatedProfile.student_id, selectedSkills);
+
+    //   setProfile(updatedProfile);
+    //   setSuccess("Profile changes saved successfully.");
+    // } catch (err) {
+    //   console.error(err);
+    //   setError("Could not save profile changes.");
+    // }
     try {
       const nameParts = form.name.trim().split(" ");
       const firstName = nameParts[0] || "";
       const lastName = nameParts.slice(1).join(" ");
-      /*
-      const updatedProfile = await updateProfile(user.email, {
-        first_name: firstName,
-        last_name: lastName,
-        phone: form.phone,
-        bio: form.bio,
-      });
-      */
-      const {data : updatedProfile} = await updateUser(user.email, {
-        first_name: firstName,
-        last_name: lastName,
-        phone: form.phone,
-        bio: form.bio,
-        updated_at: new Date().toISOString(),
-      });
-      if(!updatedProfile){
+
+      let updatedProfile;
+
+      try {
+        console.log("Calling updateUserProfile...");
+        updatedProfile = await updateUserProfile(profile.user_id, {
+          first_name: firstName,
+          last_name: lastName,
+          phone: form.phone,
+          bio: form.bio,
+        });
+        console.log("updatedProfile:", updatedProfile);
+      } catch (err) {
+        console.error("updateUserProfile failed:", err);
+        setError("updateUserProfile failed.");
+        return;
+      }
+
+      if (!updatedProfile) {
         setError("Could not save profile changes.");
         return;
       }
 
-      if (updatedProfile.role === "student") {
+      try {
+        console.log("Saving skills with id:", updatedProfile.user_id);
+        console.log("selectedSkills:", selectedSkills);
+
+        console.log("updatedProfile:", updatedProfile);
+        console.log("user_id:", updatedProfile.user_id);
+
         await saveProfileSkills(updatedProfile.user_id, selectedSkills);
+        console.log("saveProfileSkills worked");
+      } catch (err) {
+        console.error("saveProfileSkills failed:", err);
+        setError("saveProfileSkills failed.");
+        return;
       }
 
       setProfile(updatedProfile);
       setSuccess("Profile changes saved successfully.");
     } catch (err) {
-      console.error(err);
+      console.error("Outer catch:", err);
       setError("Could not save profile changes.");
     }
   };
 
-  const isStudent = profile?.role === "student";
+  
 
   return (
     <>
@@ -218,38 +252,33 @@ export default function Profile() {
             </div>
           </div>
 
-          {isStudent && (
-            <div className="col-lg-8">
-              <div className="card shadow-sm">
-                <div className="card-body">
-                  <h5 className="card-title mb-3">Skills</h5>
+          <div className="col-lg-8">
+            <div className="card shadow-sm">
+              <div className="card-body">
+                <h5 className="card-title mb-3">Skills</h5>
 
-                  {allSkills.length === 0 ? (
-                    <p className="text-muted small mb-0">No skills available.</p>
-                  ) : (
-                    <div className="d-flex flex-wrap gap-2">
-                      {allSkills.map((skill) => {
-                        const isSelected = selectedSkills.includes(skill.skill_id);
+                <div className="d-flex flex-wrap gap-2">
+                  {allSkills.map((skill) => {
+                    const isSelected = selectedSkills.includes(skill.skill_id);
 
-                        return (
-                          <button
-                            key={skill.skill_id}
-                            type="button"
-                            className={`btn ${
-                              isSelected ? "btn-primary" : "btn-outline-primary"
-                            }`}
-                            onClick={() => handleSkillToggle(skill.skill_id)}
-                          >
-                            {skill.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                    return (
+                      <button
+                        key={skill.skill_id}
+                        type="button"
+                        className={`btn ${
+                          isSelected ? "btn-primary" : "btn-outline-primary"
+                        }`}
+                        onClick={() => handleSkillToggle(skill.skill_id)}
+                      >
+                        {skill.name}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
-          )}
+          </div>
+
 
           <div className="col-lg-20">
             <div className="card shadow-sm">
@@ -310,6 +339,26 @@ export default function Profile() {
                       />
                       <div className={`form-text text-end ${form.bio.length >= BIO_MAX ? "text-danger" : ""}`}>
                         {form.bio.length} / {BIO_MAX} characters
+                      </div>
+                    </div>
+
+                    <div className="col-12">
+                      <label className="form-label">Skills</label>
+                      <div className="d-flex flex-wrap gap-2">
+                        {/* {allSkills.map((skill) => {
+                          const isSelected = selectedSkills.includes(skill.skill_id);
+
+                          return (
+                            <button
+                              key={skill.skill_id}
+                              type="button"
+                              className={`btn ${isSelected ? "btn-primary" : "btn-outline-primary"}`}
+                              onClick={() => handleSkillToggle(skill.skill_id)}
+                            >
+                              {skill.name}
+                            </button>
+                          );
+                        })} */}
                       </div>
                     </div>
 
