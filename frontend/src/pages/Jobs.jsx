@@ -252,6 +252,8 @@ export default function Jobs() {
       Create listing
       Has an error popup
       */
+      
+
       const { data: created, error: listingError } = await createListing({
         student_id: dbUser.user_id,
         title: newListing.title,
@@ -260,6 +262,10 @@ export default function Jobs() {
         pricing_type: newListing.pricing_type,
         price_amount: Number(newListing.price_amount),
       });
+
+      console.log("Created listing:", created);
+      console.log("Listing error:", listingError);
+
       if (listingError) throw listingError;
 
       for (const skill_id of newListing.selectedSkills) {
