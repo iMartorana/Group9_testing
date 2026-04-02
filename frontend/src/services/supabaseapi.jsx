@@ -214,7 +214,7 @@ export async function getActiveListings() {
     .from("listings")
     .select(`
       listing_id, title, description, status, location_text, pricing_type, price_amount, created_at, student_id, 
-      users!listings_student_id_fkey(user_id, first_name, last_name), 
+      users!listings_student_id_fkey(user_id, first_name, last_name, email, phone, bio), 
       listingsskills(skills(skill_id, name))
     `)
     .eq("status", "active")
