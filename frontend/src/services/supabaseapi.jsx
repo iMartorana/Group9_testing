@@ -137,14 +137,17 @@ export async function updateUser(email, updates) {
 Add a file to storage. File accessed using a url in the user table
 Takes an email for user reference, file url for the name, file itself
 */
-export async function updateIcon(email, fileurl, file){
-  const {data, error} = await supabase
-  .storage.from('icons')
-  .upload(fileurl, file);
-  if(error) return {data, error};
-  return {userData, userError} = await supabase
+export async function updateIcon(fileurl, file){
+  return await supabase
+  .storage
+  .from('icons')
+  .upload(fileurl, file, {upsert : true});
+}
+
+export async function setUserIcon(email, fileurl){
+  return await supabase
   .from("users")
-  .upsert({icon_url : fileurl})
+  .update({icon_url : fileurl})
   .eq("email", email)
   .select();
 }
@@ -159,7 +162,7 @@ export async function deleteIcon(fileurl){
 Get an image from storage. The url should be possible to display with like an </img> block
 */
 export async function getIcon(fileurl){
-  return { data } = await supabase.storage.from('icons').getPublicUrl('fileurl.jpg')
+  return { data } = await supabase.storage.from('icons').getPublicUrl(fileurl)
 }
 
 // ─────────────────────────────────────────────────
