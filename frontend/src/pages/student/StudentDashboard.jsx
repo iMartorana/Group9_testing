@@ -72,7 +72,10 @@ export default function StudentDashboard() {
           <div className="row align-items-center g-4">
             <div className="col-md-8">
               <h1 className="display-6 fw-bold mb-2">
-                Welcome back, {profile?.name || user?.email || "Student"}
+                Welcome back,{" "}
+                {dbUser
+                  ? `${dbUser.first_name || ""} ${dbUser.last_name || ""}`.trim() || dbUser.email
+                  : user?.email || "Student"}
               </h1>
               <p className="text-muted mb-0">
                 Manage your profile, explore job opportunities, and keep track of what clients are saying about your work.
@@ -153,7 +156,7 @@ export default function StudentDashboard() {
                     <div className="p-3 rounded bg-light border h-100">
                       <h6 className="fw-bold mb-2">Bio</h6>
                       <p className="text-muted mb-0">
-                        {profile?.bio?.trim() || "No bio added yet. Update your profile to tell clients more about yourself."}
+                        {dbUser?.bio || "No bio added yet. Update your profile to tell clients more about yourself."}
                       </p>
                     </div>
                   </div>
@@ -162,10 +165,10 @@ export default function StudentDashboard() {
                     <div className="p-3 rounded bg-light border h-100">
                       <h6 className="fw-bold mb-2">Contact</h6>
                       <p className="text-muted mb-1">
-                        <strong>Email:</strong> {profile?.email || user?.email || "Not available"}
+                        <strong>Email:</strong> {dbUser?.email || user?.email || "Not available"}
                       </p>
                       <p className="text-muted mb-0">
-                        <strong>Phone:</strong> {profile?.phone || "Not added yet"}
+                        <strong>Phone:</strong> {dbUser?.phone || "Not added yet"}
                       </p>
                     </div>
                   </div>

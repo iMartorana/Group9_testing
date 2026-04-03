@@ -51,6 +51,7 @@ export default function Jobs() {
     date: "",
     pricingType: "",
   });
+  const [profileModal, setProfileModal] = useState(null);
 
   const [newListing, setNewListing] = useState({
     title: "",
@@ -270,6 +271,8 @@ export default function Jobs() {
       Create listing
       Has an error popup
       */
+      
+
       const { data: created, error: listingError } = await createListing({
         student_id: dbUser.user_id,
         title: newListing.title,
@@ -278,6 +281,10 @@ export default function Jobs() {
         pricing_type: newListing.pricing_type,
         price_amount: Number(newListing.price_amount),
       });
+
+      console.log("Created listing:", created);
+      console.log("Listing error:", listingError);
+
       if (listingError) throw listingError;
 
       for (const skill_id of newListing.selectedSkills) {
@@ -421,7 +428,14 @@ export default function Jobs() {
 
                   <div className="card-body">
                     <p className="text-muted small mb-1">
-                      Posted by {listing.users?.first_name} {listing.users?.last_name}
+                      Posted by{" "}
+                      <button
+                        type="button"
+                        className="btn btn-link p-0 align-baseline"
+                        onClick={() => setProfileModal(listing.users)}
+                      >
+                        {listing.users?.first_name} {listing.users?.last_name}
+                      </button>
                     </p>
 
                     {listing.description && <p className="small mb-2">{listing.description}</p>}
@@ -703,8 +717,16 @@ export default function Jobs() {
 
                 <div className="modal-body">
                   <p className="text-muted small mb-3">
-                    Posted by {hireModal.users?.first_name} {hireModal.users?.last_name} · Listed
-                    at ${hireModal.price_amount} ({hireModal.pricing_type})
+                    Posted by{" "}
+                    <button
+                      type="button"
+                      className="btn btn-link p-0 align-baseline"
+                      
+                      onClick={() => setProfileModal(hireModal.users)}
+                    >
+                      {hireModal.users?.first_name} {hireModal.users?.last_name}
+                    </button>
+                    · Listed at ${hireModal.price_amount} ({hireModal.pricing_type})
                   </p>
 
                   <div className="row g-3">
@@ -767,6 +789,46 @@ export default function Jobs() {
             </div>
           </div>
         )}
+
+        {profileModal && (
+          <div
+            className="modal fade show"
+            style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
+          >
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+
+                <div className="modal-header">
+                  <h5 className="modal-title">
+                    {profileModal?.first_name} {profileModal?.last_name}
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setProfileModal(null)}
+                  />
+                </div>
+
+                <div className="modal-body">
+                  <p>Email: {profileModal?.email}</p>
+                  <p>Phone: {profileModal?.phone}</p>
+                  <p>Bio: {profileModal?.bio}</p>
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    className="btn btn-outline-secondary"
+                    onClick={() => setProfileModal(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        )}
+        
         {deleteModal && (
           <div
             className="modal fade show"
