@@ -2,19 +2,31 @@ import { useAuth0 } from "@auth0/auth0-react";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Navbar from "../../components/Navbar";
+import RatingStars from "../../components/Reviews/RatingStars";
+import {
+  getUserByEmail,
+} from "../../services/supabaseapi";
 
 export default function ClientDashboard() {
   const { user } = useAuth0();
-  const [profile, setProfile] = useState(null);
+  const [dbUser, setDbUser] = useState(null);
 
   useEffect(() => {
-    if (!user?.email) return;
-    const saved = localStorage.getItem(`profile_${user.email.toLowerCase()}`);
-    if (saved) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setProfile(JSON.parse(saved));
+  if (!user?.email) return;
+
+  const loadClientData = async () => {
+    const { data: userData, error: userError } = await getUserByEmail(user.email);
+
+    if (userError || !userData) {
+      console.error("Failed to load client data:", userError);
+      return;
     }
-  }, [user]);
+
+    setDbUser(userData);
+  };
+
+  loadClientData();
+}, [user]);
 
   return (
     <>
@@ -25,7 +37,10 @@ export default function ClientDashboard() {
           <div className="row align-items-center g-4">
             <div className="col-md-8">
               <h1 className="display-6 fw-bold mb-2">
-                Welcome back, {profile?.name || user?.email || "Client"}
+                Welcome back,{" "}
+                {dbUser
+                  ? `${dbUser.first_name || ""} ${dbUser.last_name || ""}`.trim() || dbUser.email
+                  : user?.email || "Client"}
               </h1>
               <p className="text-muted mb-0">
                 Find student talent, manage payments, and keep your hiring process organized in one place.
@@ -103,7 +118,7 @@ export default function ClientDashboard() {
                     <div className="p-3 rounded bg-light border h-100">
                       <h6 className="fw-bold mb-2">Bio</h6>
                       <p className="text-muted mb-0">
-                        {profile?.bio?.trim() || "No bio added yet. Update your profile to describe your needs and work style."}
+                        {dbUser?.bio || "No bio added yet."}
                       </p>
                     </div>
                   </div>
@@ -112,10 +127,10 @@ export default function ClientDashboard() {
                     <div className="p-3 rounded bg-light border h-100">
                       <h6 className="fw-bold mb-2">Contact</h6>
                       <p className="text-muted mb-1">
-                        <strong>Email:</strong> {profile?.email || user?.email || "Not available"}
+                        <strong>Email:</strong> {dbUser?.email || user?.email || "Not available"}
                       </p>
                       <p className="text-muted mb-0">
-                        <strong>Phone:</strong> {profile?.phone || "Not added yet"}
+                        <strong>Phone:</strong> {dbUser?.phone || "Not added yet"}
                       </p>
                     </div>
                   </div>
@@ -124,9 +139,9 @@ export default function ClientDashboard() {
                     <div className="p-3 rounded bg-light border">
                       <h6 className="fw-bold mb-2">Profile Completion</h6>
                       <p className="text-muted mb-0">
-                        {profile?.bio && profile?.phone
-                          ? "Your profile looks complete and ready to connect with student talent."
-                          : "Add a bio and phone number to make your profile more complete."}
+                        {dbUser?.bio && dbUser?.phone
+                          ? "Your profile looks complete."
+                          : "Complete your bio and phone number to strengthen your profile."}
                       </p>
                     </div>
                   </div>

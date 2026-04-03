@@ -413,7 +413,7 @@ export default function Jobs() {
                       <button
                         type="button"
                         className="btn btn-link p-0 align-baseline"
-                        onClick={() => setProfileModal(hireModal.users)}
+                        onClick={() => setProfileModal(listing.users)}
                       >
                         {listing.users?.first_name} {listing.users?.last_name}
                       </button>
