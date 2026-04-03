@@ -1,8 +1,8 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth0 } from "@auth0/auth0-react";
-//import { createUser, getUserByEmail } from "./services/userServices";
 import { getUserByEmail, insertUser } from "./services/supabaseapi";
 import { useEffect } from "react";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 import Login from "./pages/login";
 import AdminDashboard from "./pages/admin/AdminDashboard";
