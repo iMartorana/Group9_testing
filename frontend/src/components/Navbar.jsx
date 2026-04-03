@@ -1,25 +1,35 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import { Link, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 import {
   Button,
   Container,
   Nav,
   Navbar as BsNavbar,
 } from "react-bootstrap";
-import { getRoleForEmail } from "../providers/roleStore";
+import { getUserByEmail } from "../services/supabaseapi";
 
 export default function Navbar() {
   const { user, logout } = useAuth0();
+  const [dbUser, setDbUser] = useState(null);
   const location = useLocation();
 
-  const role = getRoleForEmail(user?.email);
+  useEffect(() => {
+    if (!user?.email) return;
 
-  const getHomePath = () => {
-    if (role === "student") return "/student/dashboard";
-    if (role === "client") return "/client/dashboard";
-    if (role === "admin") return "/admin";
-    return "/post-login";
-  };
+    const loadClientData = async () => {
+      const { data: userData, error: userError } = await getUserByEmail(user.email);
+
+      if (userError) {
+        console.error("Error loading user:", userError);
+        return;
+      }
+
+      setDbUser(userData);
+    };
+
+    loadClientData();
+  }, [user]);
 
   const handleLogout = () =>
     logout({
@@ -27,6 +37,13 @@ export default function Navbar() {
     });
 
   const isActive = (path) => location.pathname === path;
+
+  const getHomePath = () => {
+    if (dbUser?.role === "student") return "/student/dashboard";
+    if (dbUser?.role === "client") return "/client/dashboard";
+    if (dbUser?.role === "admin") return "/AdminDashboard";
+    return "/";
+  };
 
   return (
     <BsNavbar bg="light" expand="lg" className="border-bottom shadow-sm py-2">
@@ -41,8 +58,8 @@ export default function Navbar() {
           <Nav className="ms-auto align-items-lg-center gap-lg-2">
             <Nav.Link
               as={Link}
-              to="/AdminDashboard"
-              className={isActive("/AdminDashboard") ? "fw-bold text-primary" : "fw-semibold"}
+              to={getHomePath()}
+              className={isActive(getHomePath()) ? "fw-bold text-primary" : "fw-semibold"}
             >
               Home
             </Nav.Link>
@@ -82,7 +99,9 @@ export default function Navbar() {
 
           <div className="d-flex align-items-center gap-2 ms-lg-3 mt-3 mt-lg-0">
             <span className="small text-muted d-none d-md-inline">
-              {user?.email || user?.name}
+              {dbUser
+                ? `${dbUser.first_name || ""} ${dbUser.last_name || ""}`.trim() || dbUser.email
+                : user?.email || "Client"}
             </span>
 
             <Button as={Link} to="/profile" variant="primary" size="sm">

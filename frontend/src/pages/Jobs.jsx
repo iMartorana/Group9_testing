@@ -776,9 +776,59 @@ export default function Jobs() {
                 </div>
 
                 <div className="modal-body">
-                  <p>Email: {profileModal?.email}</p>
-                  <p>Phone: {profileModal?.phone}</p>
-                  <p>Bio: {profileModal?.bio}</p>
+                  {/* Header  */}
+                  <div className="text-center mb-3">
+                    <div
+                      className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mx-auto mb-2"
+                      style={{ width: "60px", height: "60px", fontSize: "1.5rem" }}
+                    >
+                      {profileModal?.first_name?.[0]}
+                    </div>
+
+                    <h5 className="mb-0">
+                      {profileModal?.first_name} {profileModal?.last_name}
+                    </h5>
+
+                    <p className="text-muted small mb-0">
+                      {profileModal?.email}
+                    </p>
+                  </div>
+
+                  {/* Bio */}
+                  <div className="mb-3">
+                    <h6 className="fw-bold">About</h6>
+                    <p className="text-muted mb-0">
+                      {profileModal?.bio || "No bio provided yet."}
+                    </p>
+                  </div>
+
+                  {/* Contact */}
+                  <div className="mb-3">
+                    <h6 className="fw-bold">Contact</h6>
+                    <p className="mb-1">
+                      <i className="bi bi-envelope me-2 text-primary"></i>
+                      {profileModal?.email}
+                    </p>
+
+                    <p className="mb-0">
+                      <i className="bi bi-telephone me-2 text-primary"></i>
+                      {profileModal?.phone || "Not added"}
+                    </p>
+                  </div>
+
+                  {/* Skills for if we want to add later */}
+                  {profileModal?.skills && profileModal.skills.length > 0 && (
+                    <div>
+                      <h6 className="fw-bold">Skills</h6>
+                      <div className="d-flex flex-wrap gap-1">
+                        {profileModal.skills.map((s) => (
+                          <span key={s.skill_id} className="badge bg-primary">
+                            {s.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="modal-footer">
