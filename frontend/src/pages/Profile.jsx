@@ -82,8 +82,13 @@ export default function Profile() {
           bio: "",
         });
       }
-
-      setPreviewUrl(user.picture || "");
+      if(profileData.icon_url != null || profileData.icon_url == ""){
+        const {data: iconData} = getIcon(profileData.icon_url);//icon_url is null by default
+        setPreviewUrl(iconData.publicUrl || "");
+      }
+      else {
+        setPreviewUrl("");
+      }
     } catch (err) {
       console.error(err);
       setError("Could not load profile.");

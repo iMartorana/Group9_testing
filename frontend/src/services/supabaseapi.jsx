@@ -141,7 +141,15 @@ export async function updateIcon(fileurl, file){
   return await supabase
   .storage
   .from('icons')
-  .upload(fileurl, file, {upsert : true});
+  .upload(fileurl, file, {upsert : true, contentType: "/image/jpeg"});
+}
+
+/*
+Get an image from storage. The url should be possible to display with like an </img> block
+I have no idea why this isn't a promise like the rest of them, but it works
+*/
+export function getIcon(fileurl){
+  return supabase.storage.from('icons').getPublicUrl(fileurl);
 }
 
 export async function setUserIcon(email, fileurl){
@@ -156,14 +164,9 @@ export async function setUserIcon(email, fileurl){
 Delete an image from storage using a url. May need to be an array as an argument.
 */
 export async function deleteIcon(fileurl){
-  return { data, error } = await supabase.storage.from('icons').remove(fileurl)
+  return { data, error } = await supabase.storage.from('icons').remove(fileurl);
 }
-/*
-Get an image from storage. The url should be possible to display with like an </img> block
-*/
-export async function getIcon(fileurl){
-  return { data } = await supabase.storage.from('icons').getPublicUrl(fileurl)
-}
+
 
 // ─────────────────────────────────────────────────
 // SKILLS
