@@ -9,6 +9,7 @@ import {
   getActiveListings,
   createListing,
   addSkillToListing,
+  deactivateListing,
   createBookingRequest,
   createConversation,
   sendMessage,
@@ -35,6 +36,8 @@ export default function Jobs() {
   const [messageModal, setMessageModal] = useState(null);
   const [messageBody, setMessageBody] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [skillFilter, setSkillFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
@@ -241,6 +244,22 @@ export default function Jobs() {
     }
   };
 
+  const handleDeleteListing = async () => {
+    if (!deleteModal) return;
+    setDeleting(true);
+    try {
+      const { error } = await deactivateListing(deleteModal.listing_id);
+      if (error) throw error;
+      setDeleteModal(null);
+      await fetchListings();
+    } catch (err) {
+      console.error("Failed to delete listing:", err);
+      alert("Failed to delete listing.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleCreateListing = async () => {
     if (!newListing.title || !newListing.price_amount) {
       alert("Please fill in title and price.");
@@ -344,7 +363,7 @@ export default function Jobs() {
                 <label className="form-label">Location</label>
                 <input
                   className="form-control"
-                  placeholder="e.g. Milwaukee"
+                  placeholder="e.g. Milwaukee, WI"
                   value={locationFilter}
                   onChange={(e) => setLocationFilter(e.target.value)}
                 />
@@ -463,6 +482,15 @@ export default function Jobs() {
                     >
                       Reviews
                     </button>
+
+                    {role === "admin" && (
+                      <button
+                        className="btn btn-danger btn-sm flex-fill"
+                        onClick={() => setDeleteModal(listing)}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -518,6 +546,12 @@ export default function Jobs() {
 
                     <div className="col-md-6">
                       <label className="form-label">Location</label>
+                      <span
+                          title="Use precise city name with state initials, Eg: 'Oak Creek, WI' not 'Milwaukee'."
+                          style={{ cursor: "help" }}
+                        >
+                           *
+                        </span>
                       <input
                         className="form-control"
                         placeholder="e.g. Milwaukee, WI or Remote"
@@ -840,6 +874,54 @@ export default function Jobs() {
                   </button>
                 </div>
 
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {deleteModal && (
+          <div
+            className="modal fade show"
+            style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
+          >
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title text-danger">Delete Job Posting</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setDeleteModal(null)}
+                  />
+                </div>
+
+                <div className="modal-body">
+                  <p>
+                    Are you sure you want to delete{" "}
+                    <strong>&ldquo;{deleteModal.title}&rdquo;</strong>?
+                  </p>
+                  <p className="text-muted small mb-0">
+                    Posted by {deleteModal.users?.first_name} {deleteModal.users?.last_name}. This
+                    will deactivate the listing and remove it from the job board.
+                  </p>
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    className="btn btn-outline-secondary"
+                    onClick={() => setDeleteModal(null)}
+                    disabled={deleting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    disabled={deleting}
+                    onClick={handleDeleteListing}
+                  >
+                    {deleting ? "Deleting..." : "Delete Listing"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
