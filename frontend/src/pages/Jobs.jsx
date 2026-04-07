@@ -62,6 +62,10 @@ export default function Jobs() {
     selectedSkills: [],
   });
 
+  //In app error and success displays
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
   useEffect(() => {
     if (user?.email) fetchData();
   }, [user]);
@@ -165,13 +169,17 @@ export default function Jobs() {
   };
 
   const sendHireRequest = async () => {
+    setError("");
+    setSuccess("");
     if (!dbUser || !hireModal) return;
     if (!hireForm.startDate || !hireForm.endDate) {
-      alert("Please set a start and end date.");
+      //alert("Please set a start and end date.");
+      setError("Please set a start and end data.");
       return;
     }
     if (new Date(hireForm.endDate) < new Date(hireForm.startDate)) {
-      alert("End date must be after start date.");
+      //alert("End date must be after start date.");
+      setError("End date must be after start date.");
       return;
     }
 
@@ -190,11 +198,13 @@ export default function Jobs() {
       });
 
       if (error) throw error;
-      alert("Hire request sent!");
+      //alert("Hire request sent!");
+      setSuccess("Hire request sent!");
       setHireModal(null);
     } catch (err) {
       console.error("Failed to hire:", err);
-      alert("Failed to send hire request.");
+      //alert("Failed to send hire request.");
+      setError("Failed to send hire request");
     } finally {
       setHiring(false);
     }
@@ -206,11 +216,14 @@ export default function Jobs() {
   };
 
   const sendMessageToListing = async () => {
+    setError("");
+    setSuccess("");
     if (!dbUser || !messageModal) return;
 
     const recipientId = messageModal.users?.user_id;
     if (!recipientId) {
-      alert("Cannot message: listing has no associated user.");
+      //alert("Cannot message: listing has no associated user.");
+      setError("Cannot message: listing has no associated user.");
       return;
     }
 
@@ -233,18 +246,22 @@ export default function Jobs() {
       });
       if (msgError) throw msgError;
 
-      alert("Message sent!");
+      //alert("Message sent!");
+      setSuccess("Message sent!");
       setMessageModal(null);
       setMessageBody("");
     } catch (err) {
       console.error("Failed to message:", err);
-      alert("Failed to send message.");
+      //alert("Failed to send message.");
+      setError("Failed to send message");
     } finally {
       setSendingMessage(false);
     }
   };
 
   const handleDeleteListing = async () => {
+    setError("");
+    setSuccess("");
     if (!deleteModal) return;
     setDeleting(true);
     try {
@@ -254,15 +271,20 @@ export default function Jobs() {
       await fetchListings();
     } catch (err) {
       console.error("Failed to delete listing:", err);
-      alert("Failed to delete listing.");
+      //alert("Failed to delete listing.");
+      setError("Failed to delete listing");
     } finally {
       setDeleting(false);
     }
   };
 
   const handleCreateListing = async () => {
+    setError("");
+    setSuccess("");
     if (!newListing.title || !newListing.price_amount) {
+      //I'm keeping this one because it shows better while in a popup
       alert("Please fill in title and price.");
+      setError("Please fill in title and price");
       return;
     }
 
@@ -291,7 +313,8 @@ export default function Jobs() {
         await addSkillToListing(created.listing_id, skill_id);
       }
 
-      alert("Listing created!");
+      //alert("Listing created!");
+      setSuccess("Listing created");
       setShowCreateModal(false);
       setNewListing({
         title: "",
@@ -304,7 +327,8 @@ export default function Jobs() {
       await fetchListings();
     } catch (err) {
       console.error("Failed to create listing:", err);
-      alert("Failed to create listing.");
+      //alert("Failed to create listing.");
+      setError("Failed to create listing");
     }
   };
 
@@ -342,6 +366,8 @@ export default function Jobs() {
         <div className="card mb-4">
           <div className="card-body">
             <h5 className="card-title mb-3">Filter Jobs</h5>
+            {error && <div className="alert alert-danger">{error}</div>}
+            {success && <div className="alert alert-success">{success}</div>}
             <div className="row g-3">
               <div className="col-md-4">
                 <label className="form-label">Skill</label>
