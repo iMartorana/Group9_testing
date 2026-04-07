@@ -12,9 +12,9 @@ export default function ClientDashboard() {
   const [dbUser, setDbUser] = useState(null);
 
   useEffect(() => {
-  if (!user?.email) return;
+    if (!user?.email) return;
 
-  const loadClientData = async () => {
+    const loadClientData = async () => {
     const { data: userData, error: userError } = await getUserByEmail(user.email);
 
     if (userError || !userData) {
