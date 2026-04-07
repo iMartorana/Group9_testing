@@ -6,6 +6,9 @@ import RatingStars from "../../components/Reviews/RatingStars";
 import {
   getUserByEmail,
 } from "../../services/supabaseapi";
+import Carousel from 'react-bootstrap/Carousel';
+import slide1 from '../../assets/slide1.JPG';
+import slide2 from '../../assets/slide2.JPG';
 
 export default function ClientDashboard() {
   const { user } = useAuth0();
@@ -31,6 +34,29 @@ export default function ClientDashboard() {
   return (
     <>
       <Navbar />
+
+      <Carousel>
+      <Carousel.Item>
+        <img src={slide1} alt="First slide" className="d-block w-100 text-black bg-white" style={{ height: "300px", objectFit: "cover" }}/>
+        <Carousel.Caption>
+          <h3>Connect with real people</h3>
+          <p>Nulla vitae elit libero, a pharetra augue mollis interdum.</p>
+        </Carousel.Caption>
+      </Carousel.Item>
+      <Carousel.Item>
+            <img src={slide2} alt="Second slide" className="d-block w-100" style={{ height: "300px", objectFit: "cover" }}/>
+            <Carousel.Caption>
+              <h3>Find your skills</h3>
+            </Carousel.Caption>
+          </Carousel.Item>
+      <Carousel.Item>
+        <img src={slide1} alt="First slide" className="d-block w-100" style={{ height: "300px", objectFit: "cover" }}/>
+        <Carousel.Caption>
+          <h3>Gain real-world experience</h3>
+          <p>Nulla vitae elit libero, a pharetra augue mollis interdum.</p>
+        </Carousel.Caption>
+      </Carousel.Item>
+      </Carousel>
 
       <div className="container py-4">
         <div className="p-4 p-md-5 mb-4 rounded-4 bg-light border shadow-sm">

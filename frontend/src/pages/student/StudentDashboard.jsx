@@ -72,26 +72,26 @@ export default function StudentDashboard() {
 
       <Carousel>
       <Carousel.Item>
-        <img src={slide1} alt="First slide" className="d-block w-100" style={{ height: "300px", objectFit: "cover" }}/>
+        <img src={slide1} alt="First slide" className="d-block w-100 text-black bg-white" style={{ height: "300px", objectFit: "cover" }}/>
         <Carousel.Caption>
-          <h3>First slide label</h3>
+          <h3>Connect with real people</h3>
           <p>Nulla vitae elit libero, a pharetra augue mollis interdum.</p>
         </Carousel.Caption>
       </Carousel.Item>
       <Carousel.Item>
             <img src={slide2} alt="Second slide" className="d-block w-100" style={{ height: "300px", objectFit: "cover" }}/>
             <Carousel.Caption>
-              <h3>Second slide label</h3>
+              <h3>Find your skills</h3>
             </Carousel.Caption>
           </Carousel.Item>
-        </Carousel>
       <Carousel.Item>
         <img src={slide1} alt="First slide" className="d-block w-100" style={{ height: "300px", objectFit: "cover" }}/>
         <Carousel.Caption>
-          <h3>First slide label</h3>
+          <h3>Gain real-world experience</h3>
           <p>Nulla vitae elit libero, a pharetra augue mollis interdum.</p>
         </Carousel.Caption>
       </Carousel.Item>
+      </Carousel>
 
       <div className="container py-4">
         <div className="p-4 p-md-5 mb-4 rounded-4 bg-light border shadow-sm">
