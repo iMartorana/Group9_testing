@@ -13,6 +13,7 @@ import {
   createBookingRequest,
   createConversation,
   sendMessage,
+  doesConvoExist
 } from "../services/supabaseapi";
 /*
 Component to create and display listings.
@@ -198,8 +199,21 @@ export default function Jobs() {
       });
 
       if (error) throw error;
+
+      //Initiate a message
+      const {data: currentConvos, error: currentConvoErrors} = await doesConvoExist(dbUser.user_id, hireModal.student_id);
+      if(currentConvos == null || currentConvos.length == 0){
+        const { data: convo, error: convoError } = await createConversation({
+        initiatorUserId: dbUser.user_id,
+        recipientUserId: hireModal.student_id,
+      });
+         if (convoError) throw convoError
+         setSuccess("Hire request sent! Initiated a conversation in the Messaging tab");
+      }
+      else {
+        setSuccess("Hire request sent!");
+      }
       //alert("Hire request sent!");
-      setSuccess("Hire request sent!");
       setHireModal(null);
     } catch (err) {
       console.error("Failed to hire:", err);
