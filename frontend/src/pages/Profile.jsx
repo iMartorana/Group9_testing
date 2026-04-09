@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import Navbar from "../components/Navbar";
+import { Link } from "react-router-dom";
 import {
   getActiveSkills,
   getProfileSkills,
@@ -324,19 +325,25 @@ try {
                       </div>
                     </div>
                   )}
-                
           </div>
 
-          
-
           <div className="col-lg-8">
-            
+            {profile?.role === "student" && (
             <div className="card shadow-sm mb-3">
                 <div className="card-body">
                   <h5 className="card-title mb-3">Profile Summary</h5>
                   <p className="mb-1"><strong>Average Rating:</strong> {reviewSummary.avg} / 5</p>
                   <p className="mb-1"><strong>Total Reviews:</strong> {reviewSummary.count}</p>
-                  <p className="mb-3"><strong>Active Listings:</strong> {userListings.length}</p>
+                  <p className="mb-2"><strong>Active Listings:</strong> {userListings.length}</p>
+
+                  <div className="mb-4">
+                      <Link
+                        to={`/reviews?studentId=${profile?.user_id}`}
+                        className="text-decoration-none"
+                      >
+                        View all reviews →
+                      </Link>
+                  </div>
 
                   {userListings.length > 0 && (
                     <>
@@ -353,6 +360,7 @@ try {
                   )}
                 </div>
               </div>
+            )}
 
             <div className="card shadow-sm">
               <div className="card-body">

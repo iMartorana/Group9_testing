@@ -54,6 +54,9 @@ export default function Bookings() {
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
 
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
   useEffect(() => {
     if (user?.email) fetchData();
   }, [user]);
@@ -115,6 +118,8 @@ export default function Bookings() {
   };
 
   const handleAction = async (requestId, status) => {
+    setError("");
+    setSuccess("");
     setActionLoading(requestId + status);
     try {
       //Update status of a booking. Doesn't appear to have an in app error handling
@@ -150,7 +155,8 @@ export default function Bookings() {
       else await fetchClientData(dbUser.user_id);
     } catch (err) {
       console.error("Action failed:", err);
-      alert("Action failed. Please try again.");
+      //alert("Action failed. Please try again.");
+      setError("Action failed. Please try again.")
     } finally {
       setActionLoading(null);
     }
@@ -162,6 +168,8 @@ export default function Bookings() {
   };
 
   const cancelBooking = async () => {
+    setError("");
+    setSuccess("");
     if (!cancelModal || !cancelReason.trim()) return;
     setCancelling(true);
     try {
@@ -197,7 +205,8 @@ export default function Bookings() {
       else await fetchClientData(dbUser.user_id);
     } catch (err) {
       console.error("Cancel failed:", err);
-      alert("Failed to cancel booking. Please try again.");
+      //alert("Failed to cancel booking. Please try again.");
+      setError("Failed to cancel booking. Please try again.");
     } finally {
       setCancelling(false);
     }
@@ -236,7 +245,8 @@ export default function Bookings() {
       <Navbar />
       <div className="container py-4">
         <h2 className="mb-4">Bookings</h2>
-
+        {error && <div className="alert alert-danger">{error}</div>}
+        {success && <div className="alert alert-success">{success}</div>}
         {/* Tabs */}
         <ul className="nav nav-tabs mb-4">
           {tabs.map(tab => (
