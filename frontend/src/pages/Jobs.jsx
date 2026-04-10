@@ -16,6 +16,7 @@ import {
   getUserById,
   getReviewSummary,
   getListingsByStudent,
+  deactivateListing,
 } from "../services/supabaseapi";
 /*
 Component to create and display listings.
@@ -39,6 +40,8 @@ export default function Jobs() {
   const [messageModal, setMessageModal] = useState(null);
   const [messageBody, setMessageBody] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [skillFilter, setSkillFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
@@ -497,6 +500,7 @@ export default function Jobs() {
             {filtered.map((listing) => (
               <div className="col-md-6" key={listing.listing_id}>
                 <div className="card h-100 shadow-sm">
+                  
                   <div className="card-header">
                     <h5 className="card-title mb-0">{listing.title}</h5>
                   </div>
@@ -557,6 +561,14 @@ export default function Jobs() {
                     >
                       Reviews
                     </button>
+                    {role === "admin" && (
+                        <button
+                          className="btn btn-danger btn-sm flex-fill"
+                          onClick={handleDeleteListing}
+                        >
+                          Delete Listing
+                        </button>
+                      )}
                   </div>
                 </div>
               </div>
