@@ -15,7 +15,10 @@ import {
   createBookingRequest,
   createConversation,
   sendMessage,
-  doesConvoExist
+  doesConvoExist,
+  getUserById,
+  getReviewSummary,
+  getListingsByStudent,
 } from "../services/supabaseapi";
 /*
 Component to create and display listings.
@@ -388,6 +391,41 @@ export default function Jobs() {
         : [...prev.selectedSkills, skill_id],
     }));
   };
+  
+  
+
+  const openProfileModal = async (listing) => {
+  try {
+    const studentId = listing.student_id;
+    if (!studentId) return;
+
+    const [
+      { data: userData, error: userError },
+      { data: summaryData, error: summaryError },
+      { data: listingsData, error: listingsError },
+    ] = await Promise.all([
+      getUserById(studentId),
+      getReviewSummary(studentId),
+      getListingsByStudent(studentId),
+    ]);
+
+    if (userError) throw userError;
+    if (summaryError) throw summaryError;
+    if (listingsError) throw listingsError;
+
+    const activeListings = (listingsData || []).filter(
+      (item) => item.status === "active"
+    );
+
+    setProfileModal({
+      ...userData,
+      reviewSummary: summaryData,
+      activeListings,
+    });
+  } catch (err) {
+    console.error("Failed to load profile modal:", err);
+  } 
+};
 
   if (loading) {
     return (
@@ -437,7 +475,7 @@ export default function Jobs() {
                 <label className="form-label">Location</label>
                 <input
                   className="form-control"
-                  placeholder="e.g. Milwaukee, WI"
+                  placeholder="e.g. Milwaukee"
                   value={locationFilter}
                   onChange={(e) => setLocationFilter(e.target.value)}
                 />
@@ -554,7 +592,7 @@ export default function Jobs() {
                       <button
                         type="button"
                         className="btn btn-link p-0 align-baseline"
-                        onClick={() => setProfileModal(listing.users)}
+                        onClick={() => openProfileModal(listing)}
                       >
                         {listing.users?.first_name} {listing.users?.last_name}
                       </button>
@@ -604,15 +642,6 @@ export default function Jobs() {
                     >
                       Reviews
                     </button>
-
-                    {role === "admin" && (
-                      <button
-                        className="btn btn-danger btn-sm flex-fill"
-                        onClick={() => setDeleteModal(listing)}
-                      >
-                        Delete
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>
@@ -668,12 +697,6 @@ export default function Jobs() {
 
                     <div className="col-md-6">
                       <label className="form-label">Location</label>
-                      <span
-                          title="Use precise city name with state initials, Eg: 'Oak Creek, WI' not 'Milwaukee'."
-                          style={{ cursor: "help" }}
-                        >
-                           *
-                        </span>
                       <input
                         className="form-control"
                         placeholder="e.g. Milwaukee, WI or Remote"
@@ -917,12 +940,11 @@ export default function Jobs() {
             className="modal fade show"
             style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
           >
-            <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-dialog modal-dialog-centered modal-lg">
               <div className="modal-content">
-
                 <div className="modal-header">
                   <h5 className="modal-title">
-                    {profileModal?.first_name} {profileModal?.last_name}
+                    {profileModal.first_name} {profileModal.last_name}
                   </h5>
                   <button
                     type="button"
@@ -985,6 +1007,57 @@ export default function Jobs() {
                       </div>
                     </div>
                   )}
+
+                  {/* Review Summary */}
+                  <div className="mb-4">
+                    <h6 className="fw-bold mb-2">Reviews</h6>
+                    <p className="mb-0">
+                      Average Rating: {profileModal?.reviewSummary?.avg || 0} / 5
+                    </p>
+                    <p className="mb-0">
+                      Total Reviews: {profileModal?.reviewSummary?.count || 0}
+                    </p>
+
+                    <div className="mt-2">
+                      <button
+                        className="btn btn-link p-0 text-decoration-none"
+                        onClick={() => navigate(`/reviews?studentId=${profileModal.user_id}`)}
+                      >
+                        View all reviews →
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Active Listings */}
+                  <div className="mb-3">
+                    <h6 className="fw-bold">Active Listings</h6>
+
+                    {profileModal?.activeListings?.length > 0 ? (
+                      <div className="d-flex flex-column gap-2">
+                        {profileModal.activeListings.map((item) => (
+                          <button
+                            key={item.listing_id}
+                            type="button"
+                            className="border rounded p-2 text-start bg-white w-100"
+                            onClick={() => {
+                              setProfileModal(null); // close profile modal
+                              openHireModal({
+                                ...item,
+                                users: profileModal, // open profile modal
+                              });
+                            }}
+                          >
+                            <div className="fw-semibold">{item.title}</div>
+                            <div className="small text-muted">
+                              ${item.price_amount} ({item.pricing_type}) · {item.location_text || "Remote"}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted mb-0">No active listings right now.</p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="modal-footer">
@@ -1000,7 +1073,6 @@ export default function Jobs() {
             </div>
           </div>
         )}
-        
         {/* ── Admin: permanently delete a listing ─────────────────── */}
         {deleteModal && (
           <div
