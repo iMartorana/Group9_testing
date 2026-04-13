@@ -7,8 +7,11 @@ import {
   getAllSkills,
   getSkillsForStudent,
   getActiveListings,
+  getListingsByStudent,
   createListing,
   addSkillToListing,
+  deactivateListing,
+  hardDeleteListing,
   createBookingRequest,
   createConversation,
   sendMessage,
@@ -39,6 +42,11 @@ export default function Jobs() {
   const [messageModal, setMessageModal] = useState(null);
   const [messageBody, setMessageBody] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [myListings, setMyListings] = useState([]);
+  const [deactivateModal, setDeactivateModal] = useState(null);
+  const [deactivating, setDeactivating] = useState(false);
 
   const [skillFilter, setSkillFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
@@ -100,6 +108,10 @@ export default function Jobs() {
           const profileSkills = studentSkillData.map((row) => row.skills).filter(Boolean);
           setStudentSkills(profileSkills);
         }
+
+        // Load this student's own listings so they can manage (deactivate) them
+        const { data: myListingData } = await getListingsByStudent(userData.user_id);
+        setMyListings(myListingData || []);
       }
     } catch (err) {
       console.error("Failed to fetch data:", err);
@@ -273,22 +285,47 @@ export default function Jobs() {
     }
   };
 
+  // Admin: permanently removes the listing and its skill tags from the DB
   const handleDeleteListing = async () => {
     setError("");
     setSuccess("");
     if (!deleteModal) return;
     setDeleting(true);
     try {
-      const { error } = await deactivateListing(deleteModal.listing_id);
+      // Reverse of createListing + addSkillToListing: delete skills xref first, then listing
+      const { error } = await hardDeleteListing(deleteModal.listing_id);
       if (error) throw error;
+      setSuccess(`"${deleteModal.title}" has been permanently deleted.`);
       setDeleteModal(null);
       await fetchListings();
     } catch (err) {
       console.error("Failed to delete listing:", err);
-      //alert("Failed to delete listing.");
       setError("Failed to delete listing");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  // Student: soft-deactivates their own listing (status → inactive, stays in DB)
+  const handleDeactivateListing = async () => {
+    setError("");
+    setSuccess("");
+    if (!deactivateModal) return;
+    setDeactivating(true);
+    try {
+      const { error } = await deactivateListing(deactivateModal.listing_id);
+      if (error) throw error;
+      setSuccess(`"${deactivateModal.title}" has been deactivated and removed from the job board.`);
+      setDeactivateModal(null);
+      // Refresh both the public browse list and this student's own listings
+      const { data: myListingData } = await getListingsByStudent(dbUser.user_id);
+      setMyListings(myListingData || []);
+      await fetchListings();
+    } catch (err) {
+      console.error("Failed to deactivate listing:", err);
+      setError("Failed to deactivate listing");
+    } finally {
+      setDeactivating(false);
     }
   };
 
@@ -489,6 +526,54 @@ export default function Jobs() {
             </div>
           </div>
         </div>
+
+        {/* ── My Listings (students only) ─────────────────────────── */}
+        {role === "student" && myListings.length > 0 && (
+          <div className="mb-5">
+            <h4 className="fw-bold mb-3">My Listings</h4>
+            <div className="row g-3">
+              {myListings.map((listing) => (
+                <div className="col-md-6" key={listing.listing_id}>
+                  <div className={`card h-100 shadow-sm border-2 ${listing.status === "inactive" ? "border-secondary opacity-75" : "border-primary"}`}>
+                    <div className="card-header d-flex justify-content-between align-items-center">
+                      <h5 className="card-title mb-0">{listing.title}</h5>
+                      <span className={`badge ${listing.status === "active" ? "bg-success" : "bg-secondary"}`}>
+                        {listing.status}
+                      </span>
+                    </div>
+                    <div className="card-body">
+                      <p className="text-muted small mb-2">{listing.description || "No description."}</p>
+                      <p className="mb-1 small">
+                        <strong>Price:</strong> ${listing.price_amount} / {listing.pricing_type}
+                      </p>
+                      {listing.location_text && (
+                        <p className="mb-0 small">
+                          <strong>Location:</strong> {listing.location_text}
+                        </p>
+                      )}
+                    </div>
+                    <div className="card-footer d-flex gap-2">
+                      {listing.status === "active" && (
+                        <button
+                          className="btn btn-warning btn-sm flex-fill"
+                          onClick={() => setDeactivateModal(listing)}
+                        >
+                          Deactivate
+                        </button>
+                      )}
+                      {listing.status === "inactive" && (
+                        <span className="text-muted small fst-italic align-self-center">
+                          This listing has been deactivated.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <hr className="my-4" />
+          </div>
+        )}
 
         {filtered.length === 0 ? (
           <p className="text-muted">No jobs match your filters.</p>
@@ -984,6 +1069,104 @@ export default function Jobs() {
                   </button>
                 </div>
 
+              </div>
+            </div>
+          </div>
+        )}
+        {/* ── Admin: permanently delete a listing ─────────────────── */}
+        {deleteModal && (
+          <div
+            className="modal fade show"
+            style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
+          >
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title text-danger">Permanently Delete Listing</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setDeleteModal(null)}
+                  />
+                </div>
+
+                <div className="modal-body">
+                  <p>
+                    Are you sure you want to permanently delete{" "}
+                    <strong>&ldquo;{deleteModal.title}&rdquo;</strong>?
+                  </p>
+                  <p className="text-muted small mb-0">
+                    Posted by {deleteModal.users?.first_name} {deleteModal.users?.last_name}.
+                    This will remove the listing and all its skill tags from the database entirely.
+                    <strong className="text-danger"> This cannot be undone.</strong>
+                  </p>
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    className="btn btn-outline-secondary"
+                    onClick={() => setDeleteModal(null)}
+                    disabled={deleting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    disabled={deleting}
+                    onClick={handleDeleteListing}
+                  >
+                    {deleting ? "Deleting..." : "Permanently Delete"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Student: deactivate their own listing ────────────────── */}
+        {deactivateModal && (
+          <div
+            className="modal fade show"
+            style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
+          >
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title text-warning">Deactivate Listing</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setDeactivateModal(null)}
+                  />
+                </div>
+
+                <div className="modal-body">
+                  <p>
+                    Are you sure you want to deactivate{" "}
+                    <strong>&ldquo;{deactivateModal.title}&rdquo;</strong>?
+                  </p>
+                  <p className="text-muted small mb-0">
+                    This listing will be hidden from the job board. It stays in the database
+                    and can be reactivated by an admin if needed.
+                  </p>
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    className="btn btn-outline-secondary"
+                    onClick={() => setDeactivateModal(null)}
+                    disabled={deactivating}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn btn-warning"
+                    disabled={deactivating}
+                    onClick={handleDeactivateListing}
+                  >
+                    {deactivating ? "Deactivating..." : "Deactivate Listing"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

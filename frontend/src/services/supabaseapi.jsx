@@ -302,9 +302,28 @@ export async function updateListing(listingId, fields) {
     .single();
 }
 
-/** Soft-delete: set a listing's status to "inactive". */
+/** Soft-delete: set a listing's status to "inactive". Used by students on their own listings. */
 export async function deactivateListing(listingId) {
   return updateListing(listingId, { status: "inactive" });
+}
+
+/**
+ * Hard-delete a listing and all its associated skill tags.
+ * This is the reverse of createListing + addSkillToListing — for admin use only.
+ * Deletes listingsskills rows first (FK constraint), then the listing itself.
+ */
+export async function hardDeleteListing(listingId) {
+  const { error: skillsError } = await supabase
+    .from("listingsskills")
+    .delete()
+    .eq("listing_id", listingId);
+
+  if (skillsError) return { data: null, error: skillsError };
+
+  return await supabase
+    .from("listings")
+    .delete()
+    .eq("listing_id", listingId);
 }
 
 /** Attach a skill tag to a listing. */
