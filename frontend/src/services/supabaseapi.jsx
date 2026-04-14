@@ -164,7 +164,7 @@ export async function setUserIcon(email, fileurl){
 Delete an image from storage using a url. May need to be an array as an argument.
 */
 export async function deleteIcon(fileurl){
-  return { data, error } = await supabase.storage.from('icons').remove(fileurl);
+  return await supabase.storage.from('icons').remove(fileurl);
 }
 
 
@@ -256,11 +256,11 @@ export async function getActiveListings() {
     .order("created_at", { ascending: false });
 }
 
-/** Get all listings created by a specific student. */
+/** Get all listings created by a specific student, including skills and booking status. */
 export async function getListingsByStudent(studentId) {
   return await supabase
     .from("listings")
-    .select("*")
+    .select("*, listingsskills(skills(skill_id, name)), bookings(bookings_id, status)")
     .eq("student_id", studentId)
     .order("created_at", { ascending: false });
 }
@@ -489,7 +489,7 @@ export async function getBookingsByClient(customerId) {
     .from("bookings")
     .select(`
       *,
-      listings(title, users(first_name, last_name))
+      listings(listing_id, title, student_id, users(user_id, first_name, last_name))
     `)
     .eq("customer_id", customerId)
     .order("start_at");
@@ -497,14 +497,41 @@ export async function getBookingsByClient(customerId) {
 
 /** Get all confirmed bookings for a student (via their listings). */
 export async function getBookingsForStudent(studentId) {
+  const { data: listingsData, error: listingsError } = await supabase
+    .from("listings")
+    .select("listing_id")
+    .eq("student_id", studentId);
+
+  if (listingsError) return { data: null, error: listingsError };
+
+  const listingIds = (listingsData || []).map((l) => l.listing_id);
+  if (listingIds.length === 0) return { data: [], error: null };
+
   return await supabase
     .from("bookings")
     .select(`
       *,
-      listings!inner(listing_id, title, student_id),
+      listings(listing_id, title, student_id),
       users(first_name, last_name, email)
     `)
-    .eq("listings.student_id", studentId)
+    .in("listing_id", listingIds)
+    .order("start_at");
+}
+
+/** Get all confirmed bookings for a client with full listing details. Used on the Jobs page "Active Listings" tab. */
+export async function getActiveBookingListingsForClient(customerId) {
+  return await supabase
+    .from("bookings")
+    .select(`
+      bookings_id, start_at, end_at, agreed_price_amount, status,
+      listings(
+        listing_id, title, description, location_text, pricing_type, price_amount,
+        users!listings_student_id_fkey(user_id, first_name, last_name),
+        listingsskills(skills(skill_id, name))
+      )
+    `)
+    .eq("customer_id", customerId)
+    .eq("status", "confirmed")
     .order("start_at");
 }
 
@@ -845,4 +872,45 @@ export async function doesConvoExist(senderId, receiverId) {
   .from("conversations")
   .select(`recipient_user_id, initiator_user_id`)
   .or(`and(initiator_user_id.eq.${senderId}, recipient_user_id.eq.${receiverId}), and(recipient_user_id.eq.${senderId}, initiator_user_id.eq.${receiverId}))`);
+}
+
+// ─────────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────────
+ 
+/**
+Fetch all notifications for a user (newest first, max 50).
+Only selects the columns that actually exist in the table.
+*/
+export async function getNotificationsForUser(userId) {
+  return await supabase
+    .from("notifications")
+    .select("notification_id, type, channel, message, created_at")
+    .eq("user_id", userId)
+    .neq("status", "cleared")
+    .order("created_at", { ascending: false });
+}
+ 
+/**
+ Mark one notification as read.
+*/
+export async function markNotificationCleared(notificationId) {
+  return await supabase
+    .from("notifications")
+    .update({ status: "cleared" })
+    .eq("notification_id", notificationId);
+}
+ 
+/**
+Create a notification.
+Only inserts columns that exist: user_id, type, channel, status.
+type values:
+  "message" | "booking_request" | "booking_accepted" |
+  "booking_declined" | "booking_cancelled" | "booking_update"
+Errors are logged but never thrown — notifications are non-critical.
+*/
+export async function createNotification({ userId, type, channel = "in_app", message = null, status = "sent" }) {
+  return await supabase
+    .from("notifications")
+    .insert([{ user_id: userId, type, channel, message, status }]);
 }

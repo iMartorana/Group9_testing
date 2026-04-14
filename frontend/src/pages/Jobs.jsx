@@ -9,16 +9,17 @@ import {
   getActiveListings,
   getListingsByStudent,
   createListing,
-  addSkillToListing,
+  updateListing,
   deactivateListing,
-  hardDeleteListing,
+  addSkillToListing,
   createBookingRequest,
+  getBookingRequestsForStudent,
   createConversation,
   sendMessage,
-  doesConvoExist,
+  createNotification,
   getUserById,
   getReviewSummary,
-  getListingsByStudent,
+  getActiveBookingListingsForClient,
 } from "../services/supabaseapi";
 /*
 Component to create and display listings.
@@ -26,25 +27,51 @@ Additionally initiates booking requests and sends initial messages
 Uses alert popups for error messages, and the professor wasn't a fan of them
 */
 
+
+/*
+Status badge for job listings.
+Only used by students when viewing their own listings since 
+job listings are hidden from the jobs page for others once they're booked
+*/
+const BOOKING_STATUS_BADGE = {
+  active:    { label: "Available",  bg: "#dcfce7", color: "#166534" },
+  booked:    { label: "Booked",     bg: "#fef9c3", color: "#92400e" },
+  completed: { label: "Completed",  bg: "#e0f2fe", color: "#075985" },
+  inactive:  { label: "Inactive",   bg: "#f3f4f6", color: "#6b7280" },
+};
+ 
+function getListingBookingStatus(listing) {
+  const bookings = listing.bookings || [];
+  if (bookings.some((b) => b.status === "confirmed")) return "booked";
+  if (bookings.some((b) => b.status === "completed")) return "completed";
+  if (listing.status === "inactive") return "inactive";
+  return "active";
+}
+
 export default function Jobs() {
   const navigate = useNavigate();
   const { user } = useAuth0();
   const [dbUser, setDbUser] = useState(null);
   const [role, setRole] = useState(null);
   const [listings, setListings] = useState([]);
+  const [myListings, setMyListings] = useState([]);
+  const [clientActiveListings, setClientActiveListings] = useState([]);
   const [skills, setSkills] = useState([]);
   const [studentSkills, setStudentSkills] = useState([]);
+  
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("browse");
   const [hiring, setHiring] = useState(false);
   const [hireModal, setHireModal] = useState(null);
   const [hireForm, setHireForm] = useState({ price: "", startDate: "", endDate: "" });
   const [showCreateModal, setShowCreateModal] = useState(false);
+  
+  const [editModal, setEditModal] = useState(null);
   const [messageModal, setMessageModal] = useState(null);
   const [messageBody, setMessageBody] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
   const [deleteModal, setDeleteModal] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const [myListings, setMyListings] = useState([]);
   const [deactivateModal, setDeactivateModal] = useState(null);
   const [deactivating, setDeactivating] = useState(false);
 
@@ -91,14 +118,15 @@ export default function Jobs() {
       setDbUser(userData);
       setRole(userData.role);
 
-      await fetchListings();
       /*
       Get all skills. Can be matched with numbers later
       No in app error handling
       */
-      const { data: skillData, error: skillError } = await getAllSkills();
-      if (skillError) throw skillError;
-      setSkills(skillData || []);
+      await Promise.all([
+        fetchListings(),
+        fetchMyListings(userData),
+        fetchSkills(),
+      ]);
 
       if (userData.role === "student") {
         const { data: studentSkillData, error: studentSkillError } =
@@ -112,6 +140,11 @@ export default function Jobs() {
         // Load this student's own listings so they can manage (deactivate) them
         const { data: myListingData } = await getListingsByStudent(userData.user_id);
         setMyListings(myListingData || []);
+      }
+
+      if (userData.role === "client") {
+        const { data: activeData } = await getActiveBookingListingsForClient(userData.user_id);
+        setClientActiveListings(activeData || []);
       }
     } catch (err) {
       console.error("Failed to fetch data:", err);
@@ -127,6 +160,17 @@ export default function Jobs() {
     const { data, error } = await getActiveListings();
     if (error) throw error;
     setListings(data || []);
+  };
+
+  const fetchMyListings = async (userData) => {
+    if (!userData || userData.role !== "student") return;
+    const { data, error } = await getListingsByStudent(userData.user_id);
+    if (!error) setMyListings(data || []);
+  };
+ 
+  const fetchSkills = async () => {
+    const { data, error } = await getAllSkills();
+    if (!error) setSkills(data || []);
   };
 
   const handleApplyFilters = () => {
@@ -212,20 +256,25 @@ export default function Jobs() {
 
       if (error) throw error;
 
-      //Initiate a message
-      const {data: currentConvos, error: currentConvoErrors} = await doesConvoExist(dbUser.user_id, hireModal.student_id);
-      if(currentConvos == null || currentConvos.length == 0){
-        const { data: convo, error: convoError } = await createConversation({
-        initiatorUserId: dbUser.user_id,
-        recipientUserId: hireModal.student_id,
-      });
-         if (convoError) throw convoError
-         setSuccess("Hire request sent! Initiated a conversation in the Messaging tab");
+      //Initiate a message and notify the student
+      const studentUserId = hireModal.users?.user_id;
+      if (studentUserId) {
+        // Get the created request ID for the notification
+        const { data: requestData } = await getBookingRequestsForStudent(studentUserId);
+        const latestRequest = requestData?.find(r => 
+          r.customer_id === dbUser.user_id && 
+          r.listing_id === hireModal.listing_id
+        );
+        
+        if (latestRequest) {
+          await createNotification({
+            userId: studentUserId,
+            type: "booking_request:" + latestRequest.request_id,
+            message: `New hire request for "${hireModal.title}" from ${dbUser.first_name} ${dbUser.last_name}`,
+          });
+        }
       }
-      else {
-        setSuccess("Hire request sent!");
-      }
-      //alert("Hire request sent!");
+      alert("Hire request sent!");
       setHireModal(null);
     } catch (err) {
       console.error("Failed to hire:", err);
@@ -272,6 +321,12 @@ export default function Jobs() {
       });
       if (msgError) throw msgError;
 
+      // Notify the recipient
+      await createNotification({
+        userId: recipientId,
+        type: "message:" + convo.conversation_id,
+        message: "You have a new message from " + dbUser.first_name + " " + dbUser.last_name,
+      });
       //alert("Message sent!");
       setSuccess("Message sent!");
       setMessageModal(null);
@@ -376,10 +431,68 @@ export default function Jobs() {
         selectedSkills: [],
       });
       await fetchListings();
+      await fetchMyListings(dbUser);
     } catch (err) {
       console.error("Failed to create listing:", err);
       //alert("Failed to create listing.");
       setError("Failed to create listing");
+    }
+  };
+
+  const openEditModal = (listing) => {
+    setEditModal({
+      listing_id: listing.listing_id,
+      title: listing.title,
+      description: listing.description || "",
+      location_text: listing.location_text || "",
+      pricing_type: listing.pricing_type,
+      price_amount: listing.price_amount,
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editModal) return;
+    try {
+      const { error } = await updateListing(editModal.listing_id, {
+        title: editModal.title,
+        description: editModal.description || null,
+        location_text: editModal.location_text || null,
+        pricing_type: editModal.pricing_type,
+        price_amount: Number(editModal.price_amount),
+      });
+      if (error) throw error;
+      alert("Listing updated!");
+      setEditModal(null);
+      await fetchMyListings(dbUser);
+      await fetchListings();
+    } catch (err) {
+      console.error("Failed to update listing:", err);
+      alert("Failed to update listing.");
+    }
+  };
+
+  const handleDeactivate = async (listingId) => {
+    if (!confirm("Are you sure you want to deactivate this listing?")) return;
+    try {
+      const { error } = await deactivateListing(listingId);
+      if (error) throw error;
+      await fetchMyListings(dbUser);
+      await fetchListings();
+    } catch (err) {
+      console.error("Failed to deactivate:", err);
+      alert("Failed to deactivate listing.");
+    }
+  };
+
+  const handleReactivate = async (listingId) => {
+    try {
+      const { error } = await updateListing(listingId, { status: "active" });
+      if (error) throw error;
+      await fetchMyListings(dbUser);
+      await fetchListings();
+    } catch (err) {
+      console.error("Failed to reactivate:", err);
+      alert("Failed to reactivate listing.");
     }
   };
 
@@ -436,6 +549,12 @@ export default function Jobs() {
     );
   }
 
+  const tabs = [
+    { key: "browse", label: "Browse Jobs" },
+    ...(role === "student" ? [{ key: "my", label: `My Listings (${myListings.length})` }] : []),
+    ...(role === "client" ? [{ key: "active", label: `Active Listings (${clientActiveListings.length})` }] : []),
+  ];
+
   return (
     <>
       <Navbar />
@@ -449,206 +568,323 @@ export default function Jobs() {
           )}
         </div>
 
-        <div className="card mb-4">
-          <div className="card-body">
-            <h5 className="card-title mb-3">Filter Jobs</h5>
-            {error && <div className="alert alert-danger">{error}</div>}
-            {success && <div className="alert alert-success">{success}</div>}
-            <div className="row g-3">
-              <div className="col-md-4">
-                <label className="form-label">Skill</label>
-                <select
-                  className="form-select"
-                  value={skillFilter}
-                  onChange={(e) => setSkillFilter(e.target.value)}
+        {/* Tabs */}
+        {tabs.length > 1 && (
+          <ul className="nav nav-tabs mb-4">
+            {tabs.map((tab) => (
+              <li className="nav-item" key={tab.key}>
+                <button
+                  className={`nav-link ${activeTab === tab.key ? "active" : ""}`}
+                  onClick={() => setActiveTab(tab.key)}
                 >
-                  <option value="">All Skills</option>
-                  {skills.map((s) => (
-                    <option key={s.skill_id} value={s.name}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="col-md-4">
-                <label className="form-label">Location</label>
-                <input
-                  className="form-control"
-                  placeholder="e.g. Milwaukee"
-                  value={locationFilter}
-                  onChange={(e) => setLocationFilter(e.target.value)}
-                />
-              </div>
-
-              <div className="col-md-4">
-                <label className="form-label">Maximum Pay ($)</label>
-                <input
-                  className="form-control"
-                  type="number"
-                  placeholder="e.g. 50"
-                  value={maxPay}
-                  onChange={(e) => setMaxPay(e.target.value)}
-                />
-              </div>
-
-              <div className="col-md-4">
-                <label className="form-label">Posted After</label>
-                <input
-                  className="form-control"
-                  type="date"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                />
-              </div>
-
-              <div className="col-md-4">
-                <label className="form-label">Pricing Type</label>
-                <select
-                  className="form-select"
-                  value={pricingType}
-                  onChange={(e) => setPricingType(e.target.value)}
-                >
-                  <option value="">Any</option>
-                  <option value="hourly">Hourly</option>
-                  <option value="fixed">Fixed</option>
-                </select>
-              </div>
-
-              <div className="col-md-4 d-flex align-items-end gap-2">
-                <button className="btn btn-primary w-100" onClick={handleApplyFilters}>
-                  Apply Filters
+                  {tab.label}
                 </button>
-                <button className="btn btn-outline-secondary w-100" onClick={handleClearFilters}>
-                  Clear
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── My Listings (students only) ─────────────────────────── */}
-        {role === "student" && myListings.length > 0 && (
-          <div className="mb-5">
-            <h4 className="fw-bold mb-3">My Listings</h4>
-            <div className="row g-3">
-              {myListings.map((listing) => (
-                <div className="col-md-6" key={listing.listing_id}>
-                  <div className={`card h-100 shadow-sm border-2 ${listing.status === "inactive" ? "border-secondary opacity-75" : "border-primary"}`}>
-                    <div className="card-header d-flex justify-content-between align-items-center">
-                      <h5 className="card-title mb-0">{listing.title}</h5>
-                      <span className={`badge ${listing.status === "active" ? "bg-success" : "bg-secondary"}`}>
-                        {listing.status}
-                      </span>
-                    </div>
-                    <div className="card-body">
-                      <p className="text-muted small mb-2">{listing.description || "No description."}</p>
-                      <p className="mb-1 small">
-                        <strong>Price:</strong> ${listing.price_amount} / {listing.pricing_type}
-                      </p>
-                      {listing.location_text && (
-                        <p className="mb-0 small">
-                          <strong>Location:</strong> {listing.location_text}
-                        </p>
-                      )}
-                    </div>
-                    <div className="card-footer d-flex gap-2">
-                      {listing.status === "active" && (
-                        <button
-                          className="btn btn-warning btn-sm flex-fill"
-                          onClick={() => setDeactivateModal(listing)}
-                        >
-                          Deactivate
-                        </button>
-                      )}
-                      {listing.status === "inactive" && (
-                        <span className="text-muted small fst-italic align-self-center">
-                          This listing has been deactivated.
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <hr className="my-4" />
-          </div>
-        )}
-
-        {filtered.length === 0 ? (
-          <p className="text-muted">No jobs match your filters.</p>
-        ) : (
-          <div className="row g-3">
-            {filtered.map((listing) => (
-              <div className="col-md-6" key={listing.listing_id}>
-                <div className="card h-100 shadow-sm">
-                  <div className="card-header">
-                    <h5 className="card-title mb-0">{listing.title}</h5>
-                  </div>
-
-                  <div className="card-body">
-                    <p className="text-muted small mb-1">
-                      Posted by{" "}
-                      <button
-                        type="button"
-                        className="btn btn-link p-0 align-baseline"
-                        onClick={() => openProfileModal(listing)}
-                      >
-                        {listing.users?.first_name} {listing.users?.last_name}
-                      </button>
-                    </p>
-
-                    {listing.description && <p className="small mb-2">{listing.description}</p>}
-
-                    <p className="text-muted mb-1">
-                      Location: {listing.location_text || "Remote"}
-                    </p>
-
-                    <p className="text-muted mb-1">
-                      Rate: ${listing.price_amount} ({listing.pricing_type})
-                    </p>
-
-                    <p className="text-muted mb-2">
-                      Date: {new Date(listing.created_at).toLocaleDateString()}
-                    </p>
-
-                    <div>
-                      {listing.listingsskills?.map((ls) => (
-                        <span key={ls.skills?.skill_id} className="badge bg-primary me-1">
-                          {ls.skills?.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="card-footer d-flex gap-2 flex-wrap">
-                    <button
-                      className="btn btn-primary btn-sm flex-fill"
-                      onClick={() => openHireModal(listing)}
-                    >
-                      Hire
-                    </button>
-
-                    <button
-                      className="btn btn-outline-secondary btn-sm flex-fill"
-                      onClick={() => openMessageModal(listing)}
-                    >
-                      Message
-                    </button>
-
-                    <button
-                      className="btn btn-outline-primary btn-sm flex-fill"
-                      onClick={() => navigate(`/reviews?studentId=${listing.student_id}`)}
-                    >
-                      Reviews
-                    </button>
-                  </div>
-                </div>
-              </div>
+              </li>
             ))}
+          </ul>
+        )}
+
+        {/* Browse Tab */}
+        {activeTab === "browse" && (
+          <>
+            <div className="card mb-4">
+              <div className="card-body">
+                <h5 className="card-title mb-3">Filter Jobs</h5>
+                <div className="row g-3">
+                  <div className="col-md-4">
+                    <label className="form-label">Skill</label>
+                    <select
+                      className="form-select"
+                      value={skillFilter}
+                      onChange={(e) => setSkillFilter(e.target.value)}
+                    >
+                      <option value="">All Skills</option>
+                      {skills.map((s) => (
+                        <option key={s.skill_id} value={s.name}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="col-md-4">
+                    <label className="form-label">Location</label>
+                    <input
+                      className="form-control"
+                      placeholder="e.g. Milwaukee"
+                      value={locationFilter}
+                      onChange={(e) => setLocationFilter(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="col-md-4">
+                    <label className="form-label">Maximum Pay ($)</label>
+                    <input
+                      className="form-control"
+                      type="number"
+                      placeholder="e.g. 50"
+                      value={maxPay}
+                      onChange={(e) => setMaxPay(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="col-md-4">
+                    <label className="form-label">Posted After</label>
+                    <input
+                      className="form-control"
+                      type="date"
+                      value={dateFilter}
+                      onChange={(e) => setDateFilter(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="col-md-4">
+                    <label className="form-label">Pricing Type</label>
+                    <select
+                      className="form-select"
+                      value={pricingType}
+                      onChange={(e) => setPricingType(e.target.value)}
+                    >
+                      <option value="">Any</option>
+                      <option value="hourly">Hourly</option>
+                      <option value="fixed">Fixed</option>
+                    </select>
+                  </div>
+
+                  <div className="col-md-4 d-flex align-items-end gap-2">
+                    <button className="btn btn-primary w-100" onClick={handleApplyFilters}>
+                      Apply Filters
+                    </button>
+                    <button className="btn btn-outline-secondary w-100" onClick={handleClearFilters}>
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {filtered.length === 0 ? (
+              <p className="text-muted">No jobs match your filters.</p>
+            ) : (
+              <div className="row g-3">
+                {filtered.map((listing) => (
+                  <div className="col-md-6" key={listing.listing_id}>
+                    <div className="card h-100 shadow-sm">
+                      <div className="card-header">
+                        <h5 className="card-title mb-0">{listing.title}</h5>
+                      </div>
+
+                      <div className="card-body">
+                        <p className="text-muted small mb-1">
+                          Posted by{" "}
+                          <button
+                            type="button"
+                            className="btn btn-link p-0 align-baseline"
+                            onClick={() => setProfileModal(listing.users)}
+                          >
+                            {listing.users?.first_name} {listing.users?.last_name}
+                          </button>
+                        </p>
+
+                        {listing.description && <p className="small mb-2">{listing.description}</p>}
+
+                        <p className="text-muted mb-1">
+                          Location: {listing.location_text || "Remote"}
+                        </p>
+
+                        <p className="text-muted mb-1">
+                          Rate: ${listing.price_amount} ({listing.pricing_type})
+                        </p>
+
+                        <p className="text-muted mb-2">
+                          Date: {new Date(listing.created_at).toLocaleDateString()}
+                        </p>
+
+                        <div>
+                          {listing.listingsskills?.map((ls) => (
+                            <span key={ls.skills?.skill_id} className="badge bg-primary me-1">
+                              {ls.skills?.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="card-footer d-flex gap-2 flex-wrap">
+                        <button
+                          className="btn btn-primary btn-sm flex-fill"
+                          onClick={() => openHireModal(listing)}
+                        >
+                          Hire
+                        </button>
+
+                        <button
+                          className="btn btn-outline-secondary btn-sm flex-fill"
+                          onClick={() => openMessageModal(listing)}
+                        >
+                          Message
+                        </button>
+
+                        <button
+                          className="btn btn-outline-primary btn-sm flex-fill"
+                          onClick={() => navigate(`/reviews?studentId=${listing.student_id}`)}
+                        >
+                          Reviews
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* My Listings Tab (Students) */}
+        {activeTab === "my" && role === "student" && (
+          <div>
+            {myListings.length === 0 ? (
+              <div className="text-center py-5">
+                <div style={{ fontSize: "48px", marginBottom: "16px" }}>📋</div>
+                <h5 className="text-muted mb-2">No listings yet</h5>
+                <p className="text-muted mb-4">Post your first job to start getting hired.</p>
+                <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+                  + Post a Job
+                </button>
+              </div>
+            ) : (
+              <div className="row g-3">
+                {myListings.map((listing) => {
+                  const bookingStatus = getListingBookingStatus(listing);
+                  const badge = BOOKING_STATUS_BADGE[bookingStatus];
+                  return (
+                    <div className="col-md-6" key={listing.listing_id}>
+                      <div className="card h-100 shadow-sm">
+                        <div className="card-header d-flex justify-content-between align-items-center">
+                          <h6 className="mb-0 fw-semibold">{listing.title}</h6>
+                          <span
+                            style={{
+                              background: badge.bg,
+                              color: badge.color,
+                              borderRadius: "9999px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              padding: "2px 10px",
+                            }}
+                          >
+                            {badge.label}
+                          </span>
+                        </div>
+                        <div className="card-body">
+                          {listing.description && (
+                            <p className="small text-muted mb-2">{listing.description}</p>
+                          )}
+                          <p className="text-muted small mb-1">
+                            Location: {listing.location_text || "Remote"}
+                          </p>
+                          <p className="text-muted small mb-1">
+                            Rate: ${listing.price_amount} ({listing.pricing_type})
+                          </p>
+                          <p className="text-muted small mb-2">
+                            Posted: {new Date(listing.created_at).toLocaleDateString()}
+                          </p>
+                          <div>
+                            {listing.listingsskills?.map((ls) => (
+                              <span key={ls.skills?.skill_id} className="badge bg-secondary me-1" style={{ fontSize: "11px" }}>
+                                {ls.skills?.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="card-footer d-flex gap-2">
+                          {listing.status !== "inactive" && bookingStatus !== "booked" && (
+                            <button
+                              className="btn btn-outline-primary btn-sm flex-fill"
+                              onClick={() => openEditModal(listing)}
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {listing.status === "active" && bookingStatus !== "booked" && (
+                            <button
+                              className="btn btn-outline-danger btn-sm flex-fill"
+                              onClick={() => handleDeactivate(listing.listing_id)}
+                            >
+                              Deactivate
+                            </button>
+                          )}
+                          {listing.status === "inactive" && (
+                            <button
+                              className="btn btn-outline-success btn-sm flex-fill"
+                              onClick={() => handleReactivate(listing.listing_id)}
+                            >
+                              Reactivate
+                            </button>
+                          )}
+                          {bookingStatus === "booked" && (
+                            <span className="text-muted small d-flex align-items-center ms-1">
+                              Currently booked — editing disabled
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
+        {/* Active Listings Tab (Clients) */}
+        {activeTab === "active" && role === "client" && (
+          <div>
+            {clientActiveListings.length === 0 ? (
+              <p className="text-muted">No active listings yet.</p>
+            ) : (
+              <div className="row g-3">
+                {clientActiveListings.map((booking) => {
+                  const listing = booking.listings;
+                  return (
+                    <div className="col-md-6" key={booking.bookings_id}>
+                      <div className="card h-100 shadow-sm">
+                        <div className="card-header">
+                          <h5 className="card-title mb-0">{listing?.title}</h5>
+                        </div>
+                        <div className="card-body">
+                          <p className="text-muted small mb-1">
+                            Student: {listing?.users?.first_name} {listing?.users?.last_name}
+                          </p>
+                          {listing?.description && (
+                            <p className="small mb-2">{listing.description}</p>
+                          )}
+                          <p className="text-muted small mb-1">
+                            Location: {listing?.location_text || "Remote"}
+                          </p>
+                          <p className="text-muted small mb-1">
+                            Agreed Price: ${booking.agreed_price_amount}
+                          </p>
+                          <p className="text-muted small mb-1">
+                            Start: {new Date(booking.start_at).toLocaleDateString()} &rarr;{" "}
+                            {new Date(booking.end_at).toLocaleDateString()}
+                          </p>
+                          <div>
+                            {listing?.listingsskills?.map((ls) => (
+                              <span key={ls.skills?.skill_id} className="badge bg-primary me-1">
+                                {ls.skills?.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Create Modal */}
         {showCreateModal && (
           <div
             className="modal fade show"
@@ -788,6 +1024,84 @@ export default function Jobs() {
                   </button>
                   <button className="btn btn-primary" onClick={handleCreateListing}>
                     Post Job
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Modal */}
+        {editModal && (
+          <div
+            className="modal fade show"
+            style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
+          >
+            <div className="modal-dialog modal-dialog-centered modal-lg">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Edit Listing</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setEditModal(null)}
+                  />
+                </div>
+                <div className="modal-body">
+                  <div className="row g-3">
+                    <div className="col-12">
+                      <label className="form-label">Title *</label>
+                      <input
+                        className="form-control"
+                        value={editModal.title}
+                        onChange={(e) => setEditModal((p) => ({ ...p, title: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-12">
+                      <label className="form-label">Description</label>
+                      <textarea
+                        className="form-control"
+                        rows={3}
+                        value={editModal.description}
+                        onChange={(e) => setEditModal((p) => ({ ...p, description: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">Location</label>
+                      <input
+                        className="form-control"
+                        value={editModal.location_text}
+                        onChange={(e) => setEditModal((p) => ({ ...p, location_text: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-md-3">
+                      <label className="form-label">Pricing Type *</label>
+                      <select
+                        className="form-select"
+                        value={editModal.pricing_type}
+                        onChange={(e) => setEditModal((p) => ({ ...p, pricing_type: e.target.value }))}
+                      >
+                        <option value="hourly">Hourly</option>
+                        <option value="fixed">Fixed</option>
+                      </select>
+                    </div>
+                    <div className="col-md-3">
+                      <label className="form-label">Price ($) *</label>
+                      <input
+                        className="form-control"
+                        type="number"
+                        value={editModal.price_amount}
+                        onChange={(e) => setEditModal((p) => ({ ...p, price_amount: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button className="btn btn-outline-secondary" onClick={() => setEditModal(null)}>
+                    Cancel
+                  </button>
+                  <button className="btn btn-primary" onClick={handleSaveEdit}>
+                    Save Changes
                   </button>
                 </div>
               </div>
@@ -1069,104 +1383,6 @@ export default function Jobs() {
                   </button>
                 </div>
 
-              </div>
-            </div>
-          </div>
-        )}
-        {/* ── Admin: permanently delete a listing ─────────────────── */}
-        {deleteModal && (
-          <div
-            className="modal fade show"
-            style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
-          >
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title text-danger">Permanently Delete Listing</h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => setDeleteModal(null)}
-                  />
-                </div>
-
-                <div className="modal-body">
-                  <p>
-                    Are you sure you want to permanently delete{" "}
-                    <strong>&ldquo;{deleteModal.title}&rdquo;</strong>?
-                  </p>
-                  <p className="text-muted small mb-0">
-                    Posted by {deleteModal.users?.first_name} {deleteModal.users?.last_name}.
-                    This will remove the listing and all its skill tags from the database entirely.
-                    <strong className="text-danger"> This cannot be undone.</strong>
-                  </p>
-                </div>
-
-                <div className="modal-footer">
-                  <button
-                    className="btn btn-outline-secondary"
-                    onClick={() => setDeleteModal(null)}
-                    disabled={deleting}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="btn btn-danger"
-                    disabled={deleting}
-                    onClick={handleDeleteListing}
-                  >
-                    {deleting ? "Deleting..." : "Permanently Delete"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Student: deactivate their own listing ────────────────── */}
-        {deactivateModal && (
-          <div
-            className="modal fade show"
-            style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
-          >
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title text-warning">Deactivate Listing</h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => setDeactivateModal(null)}
-                  />
-                </div>
-
-                <div className="modal-body">
-                  <p>
-                    Are you sure you want to deactivate{" "}
-                    <strong>&ldquo;{deactivateModal.title}&rdquo;</strong>?
-                  </p>
-                  <p className="text-muted small mb-0">
-                    This listing will be hidden from the job board. It stays in the database
-                    and can be reactivated by an admin if needed.
-                  </p>
-                </div>
-
-                <div className="modal-footer">
-                  <button
-                    className="btn btn-outline-secondary"
-                    onClick={() => setDeactivateModal(null)}
-                    disabled={deactivating}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    className="btn btn-warning"
-                    disabled={deactivating}
-                    onClick={handleDeactivateListing}
-                  >
-                    {deactivating ? "Deactivating..." : "Deactivate Listing"}
-                  </button>
-                </div>
               </div>
             </div>
           </div>

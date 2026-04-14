@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getAllUsers, createConversation, sendMessage } from "../../services/supabaseapi";
+import { getAllUsers, createConversation, sendMessage, createNotification } from "../../services/supabaseapi";
 /*
 Component for initializing conversations and sending an initial method
 NOTE: Look over the getAllUsers part for establishing conversations
@@ -56,6 +56,9 @@ export default function NewConversationModal({ dbUser, onClose, onCreated }) {
       });
 
       if (msgError) throw msgError;
+
+      // Notify the recipient
+      await createNotification({ userId: parseInt(selectedUser), type: "message:" + convo.conversation_id, message: "You have a new message from " + dbUser.first_name + " " + dbUser.last_name });
 
       onCreated(convo);
     } catch (err) {
