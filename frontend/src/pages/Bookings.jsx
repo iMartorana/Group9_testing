@@ -7,6 +7,7 @@ import {
   getBookingRequestsForStudent,
   updateBookingRequestStatus,
   createBooking,
+  createPayment,
   getBookingsByClient,
   getBookingsForStudent,
   updateBookingStatus,
@@ -139,15 +140,24 @@ export default function Bookings() {
           The parsed part doesn't have a complete catch section
           No in app error handling
           */
-          const { error: bookingError } = await createBooking({
-            request_id:          req.request_id,
-            customer_id:         req.customer_id,
-            listing_id:          req.listing_id,
-            start_at:            req.requested_start_at,
-            end_at:              req.requested_end_at,
+          const { data: booking, error: bookingError } = await createBooking({
+            request_id: req.request_id,
+            customer_id: req.customer_id,
+            listing_id: req.listing_id,
+            start_at: req.requested_start_at,
+            end_at: req.requested_end_at,
             agreed_price_amount: agreedPrice,
           });
           if (bookingError) throw bookingError;
+
+          const { error: paymentError } = await createPayment({
+            booking_id: booking.bookings_id,
+            customer_id: req.customer_id,
+            student_id: req.listings?.student_id,
+            amount: agreedPrice,
+            status: "Unpaid",
+          });
+          if (paymentError) throw paymentError;
         }
       }
 

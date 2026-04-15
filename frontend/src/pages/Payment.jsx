@@ -1,40 +1,83 @@
+import { useEffect, useState } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
 import Navbar from "../components/Navbar";
-
-const mockPayments = [
-  {
-    payment_id: 1,
-    booking_id: 101,
-    job_title: "Dog Walking",
-    client_name: "Gia Mort",
-    student_name: "Will Smith",
-    amount: 25,
-    status: "Paid",
-    created_at: "2026-04-10",
-  },
-  {
-    payment_id: 2,
-    booking_id: 102,
-    job_title: "Lawn Care",
-    client_name: "Milania Mort",
-    student_name: "Theo V",
-    amount: 40,
-    status: "Unpaid",
-    created_at: "2026-04-11",
-  },
-  {
-    payment_id: 3,
-    booking_id: 103,
-    job_title: "Tutoring",
-    client_name: "Enzo Mort",
-    student_name: "Abby Lee Miller",
-    amount: 30,
-    status: "Failed",
-    created_at: "2026-04-12",
-  },
-];
+import {
+  getUserByEmail,
+  getPaymentsByClient,
+  getPaymentsForStudent,
+  updatePaymentStatus,
+} from "../services/supabaseapi";
 
 export default function Payment() {
-  const userRole = "client"; // later replace with real logged-in role
+  const { user } = useAuth0();
+
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState("");
+  const [dbUser, setDbUser] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const loadPayments = async () => {
+      if (!user?.email) return;
+
+      setLoading(true);
+      setError("");
+
+      try {
+        const { data: profile, error: profileError } = await getUserByEmail(user.email);
+        if (profileError) throw profileError;
+
+        setDbUser(profile);
+        setUserRole(profile.role);
+
+        let result;
+        if (profile.role === "client") {
+          result = await getPaymentsByClient(profile.user_id);
+        } else if (profile.role === "student") {
+          result = await getPaymentsForStudent(profile.user_id);
+        } else {
+          result = { data: [] };
+        }
+
+        if (result.error) throw result.error;
+
+        setPayments(result.data || []);
+      } catch (err) {
+        console.error("Failed to load payments:", err);
+        setError("Failed to load payment history.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPayments();
+  }, [user]);
+
+  const handleStatusChange = async (paymentId, newStatus) => {
+    try {
+      const { error } = await updatePaymentStatus(paymentId, newStatus);
+      if (error) throw error;
+
+      setPayments((prev) =>
+        prev.map((payment) =>
+          payment.payment_id === paymentId
+            ? { ...payment, status: newStatus }
+            : payment
+        )
+      );
+    } catch (err) {
+      console.error("Failed to update payment status:", err);
+      setError("Failed to update payment status.");
+    }
+  };
+
+  const getBadgeClass = (status) => {
+    if (status === "Paid") return "bg-success";
+    if (status === "Unpaid") return "bg-warning text-dark";
+    if (status === "Failed") return "bg-danger";
+    return "bg-secondary";
+  };
 
   return (
     <>
@@ -47,57 +90,63 @@ export default function Payment() {
           <div className="card-body">
             <h5 className="card-title mb-3">Bookings Log</h5>
 
-            {mockPayments.length === 0 ? (
+            {loading ? (
+              <p className="text-muted mb-0">Loading payments...</p>
+            ) : error ? (
+              <p className="text-danger mb-0">{error}</p>
+            ) : payments.length === 0 ? (
               <p className="text-muted mb-0">No payment records yet.</p>
             ) : (
               <div className="d-flex flex-column gap-3">
-                {mockPayments.map((payment) => (
-                  <div key={payment.payment_id} className="border rounded p-3">
-                    <div className="d-flex justify-content-between flex-wrap gap-3">
-                      <div>
-                        <h6 className="mb-1">{payment.job_title}</h6>
-                        <p className="mb-1 text-muted">
-                          Student: {payment.student_name}
-                        </p>
-                        <p className="mb-1 text-muted">
-                          Client: {payment.client_name}
-                        </p>
-                        <p className="mb-1 text-muted">
-                          Amount: ${payment.amount}
-                        </p>
-                        <p className="mb-0 text-muted">
-                          Created:{" "}
-                          {new Date(payment.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
+                {payments.map((payment) => {
+                  const jobTitle =
+                    payment.bookings?.listings?.title || "Untitled Job";
 
-                      <div className="text-end">
-                        {userRole === "client" ? (
-                          <select
-                            className="form-select"
-                            defaultValue={payment.status}
-                          >
-                            <option value="Paid">Paid</option>
-                            <option value="Unpaid">Unpaid</option>
-                            <option value="Failed">Failed</option>
-                          </select>
-                        ) : (
-                          <span
-                            className={`badge ${
-                              payment.status === "Paid"
-                                ? "bg-success"
-                                : payment.status === "Unpaid"
-                                ? "bg-warning text-dark"
-                                : "bg-danger"
-                            }`}
-                          >
-                            {payment.status}
-                          </span>
-                        )}
+                  const studentName = payment.student
+                    ? `${payment.student.first_name || ""} ${payment.student.last_name || ""}`.trim()
+                    : "Unknown Student";
+
+                  const clientName = payment.customer
+                    ? `${payment.customer.first_name || ""} ${payment.customer.last_name || ""}`.trim()
+                    : "Unknown Client";
+
+                  return (
+                    <div key={payment.payment_id} className="border rounded p-3">
+                      <div className="d-flex justify-content-between flex-wrap gap-3">
+                        <div>
+                          <h6 className="mb-1">{jobTitle}</h6>
+                          <p className="mb-1 text-muted">Student: {studentName}</p>
+                          <p className="mb-1 text-muted">Client: {clientName}</p>
+                          <p className="mb-1 text-muted">Amount: ${payment.amount}</p>
+                          <p className="mb-1 text-muted">Provider: {payment.provider || "manual"}</p>
+                          <p className="mb-0 text-muted">
+                            Created: {new Date(payment.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+
+                        <div className="text-end">
+                          {userRole === "student" ? (
+                            <select
+                              className="form-select"
+                              value={payment.status}
+                              onChange={(e) =>
+                                handleStatusChange(payment.payment_id, e.target.value)
+                              }
+                            >
+                              <option value="Paid">Paid</option>
+                              <option value="Unpaid">Unpaid</option>
+                              <option value="Failed">Failed</option>
+                            </select>
+                          ) : (
+                            <span className={`badge ${getBadgeClass(payment.status)}`}>
+                              {payment.status}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
