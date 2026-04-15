@@ -18,8 +18,6 @@ import {
   doesConvoExist,
   getUserById,
   getReviewSummary,
-  getListingsByStudent,
-  deactivateListing,
 } from "../services/supabaseapi";
 /*
 Component to create and display listings.
