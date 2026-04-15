@@ -249,7 +249,7 @@ export async function getActiveListings() {
     .from("listings")
     .select(`
       listing_id, title, description, status, location_text, pricing_type, price_amount, created_at, student_id, 
-      users!listings_student_id_fkey(user_id, first_name, last_name, email, phone, bio), 
+      users!listings_student_id_fkey(user_id, first_name, last_name, email, phone, bio, icon_url), 
       listingsskills(skills(skill_id, name))
     `)
     .eq("status", "active")
@@ -849,7 +849,7 @@ export async function doesConvoExist(senderId, receiverId) {
 
 // ─────────────────────────────────────────────────
 // PAYMENTS
-// ─────────────────────────────────────────────────
+// ───────────────────────────────────────────────__
 
 /** Create a payment log row once a booking is accepted/created. */
 export async function createPayment({

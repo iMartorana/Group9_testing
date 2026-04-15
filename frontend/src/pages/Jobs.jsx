@@ -18,6 +18,7 @@ import {
   doesConvoExist,
   getUserById,
   getReviewSummary,
+  getIcon,
 } from "../services/supabaseapi";
 /*
 Component to create and display listings.
@@ -69,6 +70,8 @@ export default function Jobs() {
     price_amount: "",
     selectedSkills: [],
   });
+
+  
 
   //In app error and success displays
   const [error, setError] = useState("");
@@ -587,7 +590,20 @@ export default function Jobs() {
                   </div>
 
                   <div className="card-body">
-                    <p className="text-muted small mb-1">
+                    <img
+                      src={
+                        listing.users?.icon_url
+                          ? getIcon(listing.users.icon_url).data.publicUrl
+                          : "https://placehold.co/40x40"
+                      }
+                      alt="Profile"
+                      className="rounded-circle"
+                      width="40"
+                      height="40"
+                      style={{ objectFit: "cover" }}
+                    />
+
+                    <p className="text-muted small mb-0">
                       Posted by{" "}
                       <button
                         type="button"
