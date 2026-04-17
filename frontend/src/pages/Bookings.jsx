@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
+import { useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import {
   getUserByEmail,
@@ -13,6 +14,7 @@ import {
   updateBookingStatus,
   createConversation,
   sendMessage,
+  createNotification,
 } from "../services/supabaseapi";
 /*
 Component to handle bookings. Very complicated
@@ -38,6 +40,7 @@ function StatusBadge({ status }) {
 
 export default function Bookings() {
   const { user } = useAuth0();
+  const [searchParams] = useSearchParams();
   const [dbUser, setDbUser] = useState(null);
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,9 +61,63 @@ export default function Bookings() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // Load data on mount
   useEffect(() => {
     if (user?.email) fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // Handle bookingId and tab navigation from URL parameters
+  useEffect(() => {
+    if (!loading && dbUser && role) {
+      const bookingId = searchParams.get('bookingId');
+      const tab = searchParams.get('tab');
+      
+      if (bookingId) {
+        // Find which tab contains this booking and navigate to it
+        if (role === 'student') {
+          // Check sent requests
+          const sentReq = sentRequests.find(r => r.request_id === parseInt(bookingId));
+          if (sentReq) {
+            setActiveTab('sent');
+            return;
+          }
+          // Check received requests
+          const receivedReq = receivedRequests.find(r => r.request_id === parseInt(bookingId));
+          if (receivedReq) {
+            setActiveTab('received');
+            return;
+          }
+          // Check active bookings
+          const booking = studentBookings.find(b => b.bookings_id === parseInt(bookingId));
+          if (booking) {
+            setActiveTab('active');
+            return;
+          }
+        } else {
+          // Client role - check sent requests
+          const sentReq = clientSentRequests.find(r => r.request_id === parseInt(bookingId));
+          if (sentReq) {
+            setActiveTab('sent');
+            return;
+          }
+          // Check active bookings
+          const booking = clientBookings.find(b => b.bookings_id === parseInt(bookingId));
+          if (booking) {
+            setActiveTab('active');
+            return;
+          }
+        }
+      } else if (tab) {
+        // Navigate to specific tab if provided
+        if (role === 'student' && ['sent', 'received', 'active'].includes(tab)) {
+          setActiveTab(tab);
+        } else if (role === 'client' && ['sent', 'active'].includes(tab)) {
+          setActiveTab(tab);
+        }
+      }
+    }
+  }, [searchParams, loading, dbUser, role, sentRequests, receivedRequests, studentBookings, clientSentRequests, clientBookings]);
 
   const fetchData = async () => {
     try {
@@ -95,14 +152,20 @@ export default function Bookings() {
   No error handling
   */
   const fetchStudentData = async (userId) => {
-    const [sentRes, receivedRes, bookingsRes] = await Promise.all([
+    const [sentRes, receivedRes, providerBookingsRes, customerBookingsRes] = await Promise.all([
       getBookingRequestsByClient(userId),
       getBookingRequestsForStudent(userId),
       getBookingsForStudent(userId),
+      getBookingsByClient(userId),
     ]);
     setSentRequests(sentRes.data || []);
     setReceivedRequests(receivedRes.data || []);
-    setStudentBookings(bookingsRes.data || []);
+    // Merge bookings where student is the provider (their listing was booked)
+    // with bookings where student is the customer (they hired someone else)
+    setStudentBookings([
+      ...(providerBookingsRes.data || []),
+      ...(customerBookingsRes.data || []),
+    ]);
   };
   /*
   Get booking requests for clients
@@ -126,9 +189,9 @@ export default function Bookings() {
       //Update status of a booking. Doesn't appear to have an in app error handling
       const { error } = await updateBookingRequestStatus(requestId, status);
       if (error) throw error;
+      const req = receivedRequests.find(r => r.request_id === requestId);
 
       if (status === "accepted") {
-        const req = receivedRequests.find(r => r.request_id === requestId);
         if (req) {
           let agreedPrice = req.listings?.price_amount ?? 0;
           try {
@@ -161,6 +224,15 @@ export default function Bookings() {
         }
       }
 
+      if (status === "declined" && req) {
+        // Notify the client that their request was declined
+        await createNotification({
+          userId: req.customer_id,
+          type: "booking_declined:" + req.request_id,
+          message: `Your booking request for "${req.listings?.title}" has been declined.`,
+        });
+      }
+
       if (role === "student") await fetchStudentData(dbUser.user_id);
       else await fetchClientData(dbUser.user_id);
     } catch (err) {
@@ -187,9 +259,9 @@ export default function Bookings() {
       const { error: cancelError } = await updateBookingStatus(cancelModal.bookings_id, "cancelled");
       if (cancelError) throw cancelError;
 
-      const recipientId = role === "student"
-        ? cancelModal.customer_id
-        : cancelModal.listings?.users?.user_id ?? null;
+      const recipientId = cancelModal.customer_id === dbUser.user_id
+        ? cancelModal.listings?.users?.user_id ?? null
+        : cancelModal.customer_id;
 
       if (recipientId) {
         /*
@@ -207,6 +279,12 @@ export default function Bookings() {
           body: `Your booking for "${cancelModal.listings?.title}" has been cancelled.\n\nReason: ${cancelReason.trim()}`,
         });
         if (msgError) throw msgError;
+
+        await createNotification({
+          userId: recipientId,
+          type: "booking_cancelled:" + cancelModal.bookings_id,
+          message: `Your booking for "${cancelModal.listings?.title}" was cancelled by ${dbUser.first_name} ${dbUser.last_name}.`,
+        });
       }
 
       setCancelModal(null);
@@ -412,13 +490,13 @@ export default function Bookings() {
                           <StatusBadge status={booking.status} />
                         </div>
                         <div className="card-body">
-                          {role === "student" ? (
+                          {booking.customer_id === dbUser?.user_id ? (
                             <p className="text-muted small mb-1">
-                              Client: {booking.users?.first_name} {booking.users?.last_name}
+                              Student: {booking.listings?.users?.first_name} {booking.listings?.users?.last_name}
                             </p>
                           ) : (
                             <p className="text-muted small mb-1">
-                              Student: {booking.listings?.users?.first_name} {booking.listings?.users?.last_name}
+                              Client: {booking.users?.first_name} {booking.users?.last_name}
                             </p>
                           )}
                           <p className="text-muted small mb-1">

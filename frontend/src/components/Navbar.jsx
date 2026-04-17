@@ -8,6 +8,7 @@ import {
   Navbar as BsNavbar,
 } from "react-bootstrap";
 import { getUserByEmail } from "../services/supabaseapi";
+import NotificationBell from "./NotificationBell";
 
 export default function Navbar() {
   const { user, logout } = useAuth0();
@@ -103,6 +104,8 @@ export default function Navbar() {
                 ? `${dbUser.first_name || ""} ${dbUser.last_name || ""}`.trim() || dbUser.email
                 : user?.email || "Client"}
             </span>
+
+            <NotificationBell userId={dbUser?.user_id} />
 
             <Button as={Link} to="/profile" variant="primary" size="sm">
               Profile
