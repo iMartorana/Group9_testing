@@ -18,7 +18,7 @@ import {
   doesConvoExist,
   getUserById,
   getReviewSummary,
-  getListingsByStudent,
+  getIcon,
 } from "../services/supabaseapi";
 /*
 Component to create and display listings.
@@ -70,6 +70,8 @@ export default function Jobs() {
     price_amount: "",
     selectedSkills: [],
   });
+
+  
 
   //In app error and success displays
   const [error, setError] = useState("");
@@ -582,12 +584,26 @@ export default function Jobs() {
             {filtered.map((listing) => (
               <div className="col-md-6" key={listing.listing_id}>
                 <div className="card h-100 shadow-sm">
+                  
                   <div className="card-header">
                     <h5 className="card-title mb-0">{listing.title}</h5>
                   </div>
 
                   <div className="card-body">
-                    <p className="text-muted small mb-1">
+                    <img
+                      src={
+                        listing.users?.icon_url
+                          ? getIcon(listing.users.icon_url).data.publicUrl
+                          : "https://placehold.co/40x40"
+                      }
+                      alt="Profile"
+                      className="rounded-circle"
+                      width="40"
+                      height="40"
+                      style={{ objectFit: "cover" }}
+                    />
+
+                    <p className="text-muted small mb-0">
                       Posted by{" "}
                       <button
                         type="button"
@@ -642,6 +658,14 @@ export default function Jobs() {
                     >
                       Reviews
                     </button>
+                    {role === "admin" && (
+                        <button
+                          className="btn btn-danger btn-sm flex-fill"
+                          onClick={handleDeleteListing}
+                        >
+                          Delete Listing
+                        </button>
+                      )}
                   </div>
                 </div>
               </div>
