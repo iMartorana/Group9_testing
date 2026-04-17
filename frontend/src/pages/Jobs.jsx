@@ -19,12 +19,6 @@ import {
   createConversation,
   sendMessage,
   createNotification,
-  doesConvoExist,
-  getUserById,
-  getReviewSummary,
-  createListingReport,
-  createUserReport,
-  getIcon,
 } from "../services/supabaseapi";
 
 /*
@@ -83,14 +77,6 @@ export default function Jobs() {
   const [messageBody, setMessageBody] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
 
-  const [messageModal, setMessageModal] = useState(null);
-  const [messageBody, setMessageBody] = useState("");
-  const [sendingMessage, setSendingMessage] = useState(false);
-
-  const [deleteModal, setDeleteModal] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-
-  const [myListings, setMyListings] = useState([]);
   const [deactivateModal, setDeactivateModal] = useState(null);
   const [deactivating, setDeactivating] = useState(false);
 
