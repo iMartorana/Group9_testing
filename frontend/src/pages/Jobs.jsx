@@ -19,7 +19,7 @@ import {
   createNotification,
   getUserById,
   getReviewSummary,
-  getActiveBookingListingsForClient,
+  getIcon,
 } from "../services/supabaseapi";
 /*
 Component to create and display listings.
@@ -97,6 +97,8 @@ export default function Jobs() {
     price_amount: "",
     selectedSkills: [],
   });
+
+  
 
   //In app error and success displays
   const [error, setError] = useState("");
@@ -574,6 +576,7 @@ export default function Jobs() {
             {tabs.map((tab) => (
               <li className="nav-item" key={tab.key}>
                 <button
+                  type="button"
                   className={`nav-link ${activeTab === tab.key ? "active" : ""}`}
                   onClick={() => setActiveTab(tab.key)}
                 >
@@ -582,6 +585,158 @@ export default function Jobs() {
               </li>
             ))}
           </ul>
+        )}
+
+        <button
+          type="button"
+          className="btn btn-outline-secondary w-100"
+          onClick={handleClearFilters}
+        >
+          Clear
+        </button>
+
+        {/* ── My Listings (students only) ─────────────────────────── */}
+        {role === "student" && myListings.length > 0 && (
+          <div className="mb-5">
+            <h4 className="fw-bold mb-3">My Listings</h4>
+            <div className="row g-3">
+              {myListings.map((listing) => (
+                <div className="col-md-6" key={listing.listing_id}>
+                  <div className={`card h-100 shadow-sm border-2 ${listing.status === "inactive" ? "border-secondary opacity-75" : "border-primary"}`}>
+                    <div className="card-header d-flex justify-content-between align-items-center">
+                      <h5 className="card-title mb-0">{listing.title}</h5>
+                      <span className={`badge ${listing.status === "active" ? "bg-success" : "bg-secondary"}`}>
+                        {listing.status}
+                      </span>
+                    </div>
+                    <div className="card-body">
+                      <p className="text-muted small mb-2">{listing.description || "No description."}</p>
+                      <p className="mb-1 small">
+                        <strong>Price:</strong> ${listing.price_amount} / {listing.pricing_type}
+                      </p>
+                      {listing.location_text && (
+                        <p className="mb-0 small">
+                          <strong>Location:</strong> {listing.location_text}
+                        </p>
+                      )}
+                    </div>
+                    <div className="card-footer d-flex gap-2">
+                      {listing.status === "active" && (
+                        <button
+                          className="btn btn-warning btn-sm flex-fill"
+                          onClick={() => setDeactivateModal(listing)}
+                        >
+                          Deactivate
+                        </button>
+                      )}
+                      {listing.status === "inactive" && (
+                        <span className="text-muted small fst-italic align-self-center">
+                          This listing has been deactivated.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <hr className="my-4" />
+          </div>
+        )}
+
+        {filtered.length === 0 ? (
+          <p className="text-muted">No jobs match your filters.</p>
+        ) : (
+          <div className="row g-3">
+            {filtered.map((listing) => (
+              <div className="col-md-6" key={listing.listing_id}>
+                <div className="card h-100 shadow-sm">
+                  
+                  <div className="card-header">
+                    <h5 className="card-title mb-0">{listing.title}</h5>
+                  </div>
+
+                  <div className="card-body">
+                    <img
+                      src={
+                        listing.users?.icon_url
+                          ? getIcon(listing.users.icon_url).data.publicUrl
+                          : "https://placehold.co/40x40"
+                      }
+                      alt="Profile"
+                      className="rounded-circle"
+                      width="40"
+                      height="40"
+                      style={{ objectFit: "cover" }}
+                    />
+
+                    <p className="text-muted small mb-0">
+                      Posted by{" "}
+                      <button
+                        type="button"
+                        className="btn btn-link p-0 align-baseline"
+                        onClick={() => openProfileModal(listing)}
+                      >
+                        {listing.users?.first_name} {listing.users?.last_name}
+                      </button>
+                    </p>
+
+                    {listing.description && <p className="small mb-2">{listing.description}</p>}
+
+                    <p className="text-muted mb-1">
+                      Location: {listing.location_text || "Remote"}
+                    </p>
+
+                    <p className="text-muted mb-1">
+                      Rate: ${listing.price_amount} ({listing.pricing_type})
+                    </p>
+
+                    <p className="text-muted mb-2">
+                      Date: {new Date(listing.created_at).toLocaleDateString()}
+                    </p>
+
+                    <div>
+                      {listing.listingsskills?.map((ls) => (
+                        <span key={ls.skills?.skill_id} className="badge bg-primary me-1">
+                          {ls.skills?.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="card-footer d-flex gap-2 flex-wrap">
+                    <button
+                      className="btn btn-primary btn-sm flex-fill"
+                      onClick={() => openHireModal(listing)}
+                    >
+                      Hire
+                    </button>
+
+                    <button
+                      className="btn btn-outline-secondary btn-sm flex-fill"
+                      onClick={() => openMessageModal(listing)}
+                    >
+                      Message
+                    </button>
+
+                    <button
+                      className="btn btn-outline-primary btn-sm flex-fill"
+                      onClick={() => navigate(`/reviews?studentId=${listing.student_id}`)}
+                    >
+                      Reviews
+                    </button>
+                    {role === "admin" && (
+                        <button
+                          className="btn btn-danger btn-sm flex-fill"
+                          onClick={handleDeleteListing}
+                        >
+                          Delete Listing
+                        </button>
+                      )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
 
         {/* Browse Tab */}

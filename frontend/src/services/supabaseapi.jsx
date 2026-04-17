@@ -249,7 +249,7 @@ export async function getActiveListings() {
     .from("listings")
     .select(`
       listing_id, title, description, status, location_text, pricing_type, price_amount, created_at, student_id, 
-      users!listings_student_id_fkey(user_id, first_name, last_name, email, phone, bio), 
+      users!listings_student_id_fkey(user_id, first_name, last_name, email, phone, bio, icon_url), 
       listingsskills(skills(skill_id, name))
     `)
     .eq("status", "active")
@@ -913,4 +913,110 @@ export async function createNotification({ userId, type, channel = "in_app", mes
   return await supabase
     .from("notifications")
     .insert([{ user_id: userId, type, channel, message, status }]);
+// PAYMENTS
+// ───────────────────────────────────────────────__
+
+/** Create a payment log row once a booking is accepted/created. */
+export async function createPayment({
+  booking_id,
+  customer_id,
+  student_id,
+  amount,
+  status = "Unpaid",
+  provider = "manual",
+  provider_payment_id = null,
+}) {
+  return await supabase
+    .from("payments")
+    .insert({
+      booking_id,
+      customer_id,
+      student_id,
+      amount,
+      status,
+      provider,
+      provider_payment_id,
+      created_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
 }
+
+/** Get all payments for a client. */
+export async function getPaymentsByClient(customerId) {
+  return await supabase
+    .from("payments")
+    .select(`
+      payment_id,
+      booking_id,
+      customer_id,
+      student_id,
+      amount,
+      status,
+      provider,
+      created_at,
+      bookings(
+        bookings_id,
+        listing_id,
+        listings(
+          title
+        )
+      ),
+      customer:users!payments_customer_id_fkey(
+        user_id,
+        first_name,
+        last_name
+      ),
+      student:users!payments_student_id_fkey(
+        user_id,
+        first_name,
+        last_name
+      )
+    `)
+    .eq("customer_id", customerId)
+    .order("created_at", { ascending: false });
+}
+
+/** Get all payments for a student. */
+export async function getPaymentsForStudent(studentId) {
+  return await supabase
+    .from("payments")
+    .select(`
+      payment_id,
+      booking_id,
+      customer_id,
+      student_id,
+      amount,
+      status,
+      provider,
+      created_at,
+      bookings(
+        bookings_id,
+        listing_id,
+        listings(
+          title
+        )
+      ),
+      customer:users!payments_customer_id_fkey(
+        user_id,
+        first_name,
+        last_name
+      ),
+      student:users!payments_student_id_fkey(
+        user_id,
+        first_name,
+        last_name
+      )
+    `)
+    .eq("student_id", studentId)
+    .order("created_at", { ascending: false });
+}
+
+/** Update just the payment status. */
+export async function updatePaymentStatus(paymentId, status) {
+  return await supabase
+    .from("payments")
+    .update({ status })
+    .eq("payment_id", paymentId)
+    .select()
+    .single(); }
