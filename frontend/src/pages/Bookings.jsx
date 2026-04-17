@@ -221,6 +221,11 @@ export default function Bookings() {
             status: "Unpaid",
           });
           if (paymentError) throw paymentError;
+
+          await createNotification({
+            userId: req.customer_id,
+            type: "booking_accepted:" + req.request_id,
+          });
         }
       }
 
