@@ -913,6 +913,7 @@ export async function createNotification({ userId, type, channel = "in_app", mes
   return await supabase
     .from("notifications")
     .insert([{ user_id: userId, type, channel, message, status }]);
+}
 // PAYMENTS
 // ───────────────────────────────────────────────__
 

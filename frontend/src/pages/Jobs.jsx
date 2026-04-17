@@ -17,9 +17,6 @@ import {
   createConversation,
   sendMessage,
   createNotification,
-  getUserById,
-  getReviewSummary,
-  getIcon,
 } from "../services/supabaseapi";
 /*
 Component to create and display listings.
@@ -34,10 +31,10 @@ Only used by students when viewing their own listings since
 job listings are hidden from the jobs page for others once they're booked
 */
 const BOOKING_STATUS_BADGE = {
-  active:    { label: "Available",  bg: "#dcfce7", color: "#166534" },
-  booked:    { label: "Booked",     bg: "#fef9c3", color: "#92400e" },
-  completed: { label: "Completed",  bg: "#e0f2fe", color: "#075985" },
-  inactive:  { label: "Inactive",   bg: "#f3f4f6", color: "#6b7280" },
+  active:    { label: "Available",  cls: "bg-success" },
+  booked:    { label: "Booked",     cls: "bg-warning text-dark" },
+  completed: { label: "Completed",  cls: "bg-info text-dark" },
+  inactive:  { label: "Inactive",   cls: "bg-secondary" },
 };
  
 function getListingBookingStatus(listing) {
@@ -70,8 +67,6 @@ export default function Jobs() {
   const [messageModal, setMessageModal] = useState(null);
   const [messageBody, setMessageBody] = useState("");
   const [sendingMessage, setSendingMessage] = useState(false);
-  const [deleteModal, setDeleteModal] = useState(null);
-  const [deleting, setDeleting] = useState(false);
   const [deactivateModal, setDeactivateModal] = useState(null);
   const [deactivating, setDeactivating] = useState(false);
 
@@ -342,27 +337,6 @@ export default function Jobs() {
     }
   };
 
-  // Admin: permanently removes the listing and its skill tags from the DB
-  const handleDeleteListing = async () => {
-    setError("");
-    setSuccess("");
-    if (!deleteModal) return;
-    setDeleting(true);
-    try {
-      // Reverse of createListing + addSkillToListing: delete skills xref first, then listing
-      const { error } = await hardDeleteListing(deleteModal.listing_id);
-      if (error) throw error;
-      setSuccess(`"${deleteModal.title}" has been permanently deleted.`);
-      setDeleteModal(null);
-      await fetchListings();
-    } catch (err) {
-      console.error("Failed to delete listing:", err);
-      setError("Failed to delete listing");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   // Student: soft-deactivates their own listing (status → inactive, stays in DB)
   const handleDeactivateListing = async () => {
     setError("");
@@ -453,6 +427,8 @@ export default function Jobs() {
   };
 
   const handleSaveEdit = async () => {
+    setError("");
+    setSuccess("");
     if (!editModal) return;
     try {
       const { error } = await updateListing(editModal.listing_id, {
@@ -463,38 +439,29 @@ export default function Jobs() {
         price_amount: Number(editModal.price_amount),
       });
       if (error) throw error;
-      alert("Listing updated!");
+      setSuccess("Listing updated successfully.");
       setEditModal(null);
       await fetchMyListings(dbUser);
       await fetchListings();
     } catch (err) {
       console.error("Failed to update listing:", err);
-      alert("Failed to update listing.");
+      setError("Failed to update listing.");
     }
   };
 
-  const handleDeactivate = async (listingId) => {
-    if (!confirm("Are you sure you want to deactivate this listing?")) return;
-    try {
-      const { error } = await deactivateListing(listingId);
-      if (error) throw error;
-      await fetchMyListings(dbUser);
-      await fetchListings();
-    } catch (err) {
-      console.error("Failed to deactivate:", err);
-      alert("Failed to deactivate listing.");
-    }
-  };
 
   const handleReactivate = async (listingId) => {
+    setError("");
+    setSuccess("");
     try {
       const { error } = await updateListing(listingId, { status: "active" });
       if (error) throw error;
+      setSuccess("Listing reactivated successfully.");
       await fetchMyListings(dbUser);
       await fetchListings();
     } catch (err) {
       console.error("Failed to reactivate:", err);
-      alert("Failed to reactivate listing.");
+      setError("Failed to reactivate listing.");
     }
   };
 
@@ -509,38 +476,6 @@ export default function Jobs() {
   
   
 
-  const openProfileModal = async (listing) => {
-  try {
-    const studentId = listing.student_id;
-    if (!studentId) return;
-
-    const [
-      { data: userData, error: userError },
-      { data: summaryData, error: summaryError },
-      { data: listingsData, error: listingsError },
-    ] = await Promise.all([
-      getUserById(studentId),
-      getReviewSummary(studentId),
-      getListingsByStudent(studentId),
-    ]);
-
-    if (userError) throw userError;
-    if (summaryError) throw summaryError;
-    if (listingsError) throw listingsError;
-
-    const activeListings = (listingsData || []).filter(
-      (item) => item.status === "active"
-    );
-
-    setProfileModal({
-      ...userData,
-      reviewSummary: summaryData,
-      activeListings,
-    });
-  } catch (err) {
-    console.error("Failed to load profile modal:", err);
-  } 
-};
 
   if (loading) {
     return (
@@ -587,157 +522,8 @@ export default function Jobs() {
           </ul>
         )}
 
-        <button
-          type="button"
-          className="btn btn-outline-secondary w-100"
-          onClick={handleClearFilters}
-        >
-          Clear
-        </button>
-
-        {/* ── My Listings (students only) ─────────────────────────── */}
-        {role === "student" && myListings.length > 0 && (
-          <div className="mb-5">
-            <h4 className="fw-bold mb-3">My Listings</h4>
-            <div className="row g-3">
-              {myListings.map((listing) => (
-                <div className="col-md-6" key={listing.listing_id}>
-                  <div className={`card h-100 shadow-sm border-2 ${listing.status === "inactive" ? "border-secondary opacity-75" : "border-primary"}`}>
-                    <div className="card-header d-flex justify-content-between align-items-center">
-                      <h5 className="card-title mb-0">{listing.title}</h5>
-                      <span className={`badge ${listing.status === "active" ? "bg-success" : "bg-secondary"}`}>
-                        {listing.status}
-                      </span>
-                    </div>
-                    <div className="card-body">
-                      <p className="text-muted small mb-2">{listing.description || "No description."}</p>
-                      <p className="mb-1 small">
-                        <strong>Price:</strong> ${listing.price_amount} / {listing.pricing_type}
-                      </p>
-                      {listing.location_text && (
-                        <p className="mb-0 small">
-                          <strong>Location:</strong> {listing.location_text}
-                        </p>
-                      )}
-                    </div>
-                    <div className="card-footer d-flex gap-2">
-                      {listing.status === "active" && (
-                        <button
-                          className="btn btn-warning btn-sm flex-fill"
-                          onClick={() => setDeactivateModal(listing)}
-                        >
-                          Deactivate
-                        </button>
-                      )}
-                      {listing.status === "inactive" && (
-                        <span className="text-muted small fst-italic align-self-center">
-                          This listing has been deactivated.
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <hr className="my-4" />
-          </div>
-        )}
-
-        {filtered.length === 0 ? (
-          <p className="text-muted">No jobs match your filters.</p>
-        ) : (
-          <div className="row g-3">
-            {filtered.map((listing) => (
-              <div className="col-md-6" key={listing.listing_id}>
-                <div className="card h-100 shadow-sm">
-                  
-                  <div className="card-header">
-                    <h5 className="card-title mb-0">{listing.title}</h5>
-                  </div>
-
-                  <div className="card-body">
-                    <img
-                      src={
-                        listing.users?.icon_url
-                          ? getIcon(listing.users.icon_url).data.publicUrl
-                          : "https://placehold.co/40x40"
-                      }
-                      alt="Profile"
-                      className="rounded-circle"
-                      width="40"
-                      height="40"
-                      style={{ objectFit: "cover" }}
-                    />
-
-                    <p className="text-muted small mb-0">
-                      Posted by{" "}
-                      <button
-                        type="button"
-                        className="btn btn-link p-0 align-baseline"
-                        onClick={() => openProfileModal(listing)}
-                      >
-                        {listing.users?.first_name} {listing.users?.last_name}
-                      </button>
-                    </p>
-
-                    {listing.description && <p className="small mb-2">{listing.description}</p>}
-
-                    <p className="text-muted mb-1">
-                      Location: {listing.location_text || "Remote"}
-                    </p>
-
-                    <p className="text-muted mb-1">
-                      Rate: ${listing.price_amount} ({listing.pricing_type})
-                    </p>
-
-                    <p className="text-muted mb-2">
-                      Date: {new Date(listing.created_at).toLocaleDateString()}
-                    </p>
-
-                    <div>
-                      {listing.listingsskills?.map((ls) => (
-                        <span key={ls.skills?.skill_id} className="badge bg-primary me-1">
-                          {ls.skills?.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="card-footer d-flex gap-2 flex-wrap">
-                    <button
-                      className="btn btn-primary btn-sm flex-fill"
-                      onClick={() => openHireModal(listing)}
-                    >
-                      Hire
-                    </button>
-
-                    <button
-                      className="btn btn-outline-secondary btn-sm flex-fill"
-                      onClick={() => openMessageModal(listing)}
-                    >
-                      Message
-                    </button>
-
-                    <button
-                      className="btn btn-outline-primary btn-sm flex-fill"
-                      onClick={() => navigate(`/reviews?studentId=${listing.student_id}`)}
-                    >
-                      Reviews
-                    </button>
-                    {role === "admin" && (
-                        <button
-                          className="btn btn-danger btn-sm flex-fill"
-                          onClick={handleDeleteListing}
-                        >
-                          Delete Listing
-                        </button>
-                      )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {error && <div className="alert alert-danger alert-dismissible mb-3">{error}<button type="button" className="btn-close float-end" onClick={() => setError("")} /></div>}
+        {success && <div className="alert alert-success alert-dismissible mb-3">{success}<button type="button" className="btn-close float-end" onClick={() => setSuccess("")} /></div>}
 
         {/* Browse Tab */}
         {activeTab === "browse" && (
@@ -916,16 +702,7 @@ export default function Jobs() {
                       <div className="card h-100 shadow-sm">
                         <div className="card-header d-flex justify-content-between align-items-center">
                           <h6 className="mb-0 fw-semibold">{listing.title}</h6>
-                          <span
-                            style={{
-                              background: badge.bg,
-                              color: badge.color,
-                              borderRadius: "9999px",
-                              fontSize: "11px",
-                              fontWeight: 600,
-                              padding: "2px 10px",
-                            }}
-                          >
+                          <span className={`badge ${badge.cls}`}>
                             {badge.label}
                           </span>
                         </div>
@@ -962,7 +739,7 @@ export default function Jobs() {
                           {listing.status === "active" && bookingStatus !== "booked" && (
                             <button
                               className="btn btn-outline-danger btn-sm flex-fill"
-                              onClick={() => handleDeactivate(listing.listing_id)}
+                              onClick={() => setDeactivateModal(listing)}
                             >
                               Deactivate
                             </button>
@@ -1179,6 +956,36 @@ export default function Jobs() {
                   </button>
                   <button className="btn btn-primary" onClick={handleCreateListing}>
                     Post Job
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Deactivate Confirmation Modal */}
+        {deactivateModal && (
+          <div className="modal fade show" style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}>
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Deactivate Listing</h5>
+                  <button type="button" className="btn-close" onClick={() => setDeactivateModal(null)} />
+                </div>
+                <div className="modal-body">
+                  <p>Are you sure you want to deactivate <strong>"{deactivateModal.title}"</strong>?</p>
+                  <p className="text-muted small mb-0">It will be removed from the job board but not deleted.</p>
+                </div>
+                <div className="modal-footer">
+                  <button className="btn btn-outline-secondary" onClick={() => setDeactivateModal(null)}>
+                    Cancel
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    disabled={deactivating}
+                    onClick={handleDeactivateListing}
+                  >
+                    {deactivating ? "Deactivating..." : "Deactivate"}
                   </button>
                 </div>
               </div>
