@@ -50,8 +50,19 @@ supabase-js
 export async function getAllUsers() {
   return await supabase
     .from("users")
-    .select("user_id, first_name, last_name, role")
-    .order("first_name");
+    .select(`
+      user_id,
+      first_name,
+      last_name,
+      email,
+      role,
+      is_active,
+      delete_requested,
+      delete_request_reason,
+      account_status,
+      report_count
+    `)
+    .order("user_id", { ascending: true });
 }
 
 /** Fetch a single user by email. Used after Auth0 login to load profile + role. */
@@ -163,10 +174,9 @@ export async function setUserIcon(email, fileurl){
 /*
 Delete an image from storage using a url. May need to be an array as an argument.
 */
-export async function deleteIcon(fileurl){
-  return { data, error } = await supabase.storage.from('icons').remove(fileurl);
+export async function deleteIcon(fileurl) {
+  return await supabase.storage.from("icons").remove([fileurl]);
 }
-
 
 // ─────────────────────────────────────────────────
 // SKILLS
@@ -256,11 +266,11 @@ export async function getActiveListings() {
     .order("created_at", { ascending: false });
 }
 
-/** Get all listings created by a specific student. */
+/** Get all listings created by a specific student, including skills and booking status. */
 export async function getListingsByStudent(studentId) {
   return await supabase
     .from("listings")
-    .select("*")
+    .select("*, listingsskills(skills(skill_id, name)), bookings(bookings_id, status)")
     .eq("student_id", studentId)
     .order("created_at", { ascending: false });
 }
@@ -489,7 +499,7 @@ export async function getBookingsByClient(customerId) {
     .from("bookings")
     .select(`
       *,
-      listings(title, users(first_name, last_name))
+      listings(listing_id, title, student_id, users(user_id, first_name, last_name))
     `)
     .eq("customer_id", customerId)
     .order("start_at");
@@ -497,14 +507,41 @@ export async function getBookingsByClient(customerId) {
 
 /** Get all confirmed bookings for a student (via their listings). */
 export async function getBookingsForStudent(studentId) {
+  const { data: listingsData, error: listingsError } = await supabase
+    .from("listings")
+    .select("listing_id")
+    .eq("student_id", studentId);
+
+  if (listingsError) return { data: null, error: listingsError };
+
+  const listingIds = (listingsData || []).map((l) => l.listing_id);
+  if (listingIds.length === 0) return { data: [], error: null };
+
   return await supabase
     .from("bookings")
     .select(`
       *,
-      listings!inner(listing_id, title, student_id),
+      listings(listing_id, title, student_id),
       users(first_name, last_name, email)
     `)
-    .eq("listings.student_id", studentId)
+    .in("listing_id", listingIds)
+    .order("start_at");
+}
+
+/** Get all confirmed bookings for a client with full listing details. Used on the Jobs page "Active Listings" tab. */
+export async function getActiveBookingListingsForClient(customerId) {
+  return await supabase
+    .from("bookings")
+    .select(`
+      bookings_id, start_at, end_at, agreed_price_amount, status,
+      listings(
+        listing_id, title, description, location_text, pricing_type, price_amount,
+        users!listings_student_id_fkey(user_id, first_name, last_name),
+        listingsskills(skills(skill_id, name))
+      )
+    `)
+    .eq("customer_id", customerId)
+    .eq("status", "confirmed")
     .order("start_at");
 }
 
@@ -847,7 +884,312 @@ export async function doesConvoExist(senderId, receiverId) {
   .or(`and(initiator_user_id.eq.${senderId}, recipient_user_id.eq.${receiverId}), and(recipient_user_id.eq.${senderId}, initiator_user_id.eq.${receiverId}))`);
 }
 
+
+export async function deactivateUser(userId) {
+  return await supabase
+    .from("users")
+    .update({
+      is_active: false,
+      account_status: "deleted",
+    })
+    .eq("user_id", userId);
+}
+
+export async function approveDeletionRequest(userId) {
+  return await supabase
+    .from("users")
+    .update({
+      is_active: false,
+      delete_requested: false,
+      delete_request_status: "approved",
+      delete_request_review_note:
+        "Your deletion request was approved and your account has been closed.",
+      account_status: "deleted",
+    })
+    .eq("user_id", userId)
+    .select()
+    .single();
+}
+
+export async function rejectDeletionRequest(userId, reason) {
+  return await supabase
+    .from("users")
+    .update({
+      delete_requested: false,
+      delete_request_status: "denied",
+      delete_request_review_note: reason,
+      account_status: "active",
+    })
+    .eq("user_id", userId)
+    .select()
+    .single();
+}
+
+export async function requestAccountDeletion(userId, reason) {
+  return await supabase
+    .from("users")
+    .update({
+      delete_requested: true,
+      delete_request_reason: reason,
+      delete_request_status: "pending",
+      delete_request_review_note: null,
+      account_status: "deletion_requested",
+    })
+    .eq("user_id", userId)
+    .select()
+    .single();
+}
+
+export async function hardDeleteUser(userId) {
+  return await supabase
+    .from("users")
+    .delete()
+    .eq("user_id", userId);
+}
+
+export async function hardDeleteUserAccount(userId) {
+  return await supabase.rpc("hard_delete_user_account", {
+    target_user_id: userId,
+  });
+}
+
+
+export async function createListingReport({
+  listingId,
+  reportedByUserId,
+  listingOwnerUserId,
+  reason,
+  details,
+}) {
+  return await supabase
+    .from("listing_reports")
+    .insert({
+      listing_id: listingId,
+      reported_by_user_id: reportedByUserId,
+      listing_owner_user_id: listingOwnerUserId,
+      reason,
+      details,
+      status: "pending",
+    })
+    .select()
+    .single();
+}
+
+export async function createUserReport({
+  reportedUserId,
+  reportedByUserId,
+  reason,
+  details,
+}) {
+  return await supabase
+    .from("user_reports")
+    .insert({
+      reported_user_id: reportedUserId,
+      reported_by_user_id: reportedByUserId,
+      reason,
+      details,
+      status: "pending",
+    })
+    .select()
+    .single();
+}
+
+
+export async function getPendingListingReports() {
+  return await supabase
+    .from("listing_reports")
+    .select(`
+      report_id,
+      listing_id,
+      listing_owner_user_id,
+      reported_by_user_id,
+      reason,
+      details,
+      status,
+      admin_note,
+      created_at,
+      listings (
+        listing_id,
+        title,
+        location_text,
+        price_amount,
+        pricing_type,
+        student_id
+      ),
+      owner:users!listing_reports_listing_owner_user_id_fkey (
+        user_id,
+        first_name,
+        last_name,
+        email
+      ),
+      reported_by:users!listing_reports_reported_by_user_id_fkey (
+        user_id,
+        first_name,
+        last_name,
+        email
+      )
+    `)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+}
+export async function getPendingUserReports() {
+  return await supabase
+    .from("user_reports")
+    .select(`
+      report_id,
+      reported_user_id,
+      reported_by_user_id,
+      reason,
+      details,
+      status,
+      created_at,
+      reported_user:users!user_reports_reported_user_id_fkey (
+        user_id,
+        first_name,
+        last_name,
+        email
+      ),
+      reported_by:users!user_reports_reported_by_user_id_fkey (
+        user_id,
+        first_name,
+        last_name,
+        email
+      )
+    `)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+}
+
+
+
+export async function hardDeleteListingFull(listingId) {
+  return await supabase.rpc("hard_delete_listing_full", {
+    target_listing_id: listingId,
+  });
+}
+
+export async function sendAdminMessageToUser(adminUserId, targetUserId, body) {
+  const { data: existingConvo, error: convoCheckError } = await doesConvoExist(
+    adminUserId,
+    targetUserId
+  );
+
+  if (convoCheckError) {
+    return { data: null, error: convoCheckError };
+  }
+
+  let conversationId = null;
+
+  if (existingConvo && existingConvo.length > 0) {
+    const { data: convoData, error: convoFetchError } = await supabase
+      .from("conversations")
+      .select("conversation_id")
+      .or(
+        `and(initiator_user_id.eq.${adminUserId},recipient_user_id.eq.${targetUserId}),and(initiator_user_id.eq.${targetUserId},recipient_user_id.eq.${adminUserId})`
+      )
+      .limit(1)
+      .single();
+
+    if (convoFetchError) {
+      return { data: null, error: convoFetchError };
+    }
+
+    conversationId = convoData.conversation_id;
+  } else {
+    const { data: newConvo, error: newConvoError } = await createConversation({
+      initiatorUserId: adminUserId,
+      recipientUserId: targetUserId,
+    });
+
+    if (newConvoError) {
+      return { data: null, error: newConvoError };
+    }
+
+    conversationId = newConvo.conversation_id;
+  }
+
+  return await sendMessage({
+    conversationId,
+    senderUserId: adminUserId,
+    body,
+  });
+}
+
+export async function resolveListingReport(reportId, status = "resolved", adminNote = null) {
+  return await supabase
+    .from("listing_reports")
+    .update({
+      status,
+      admin_note: adminNote,
+    })
+    .eq("report_id", reportId)
+    .select()
+    .single();
+}
+
+export async function resolveUserReport(reportId, status = "resolved", adminNote = null) {
+  return await supabase
+    .from("user_reports")
+    .update({
+      status,
+      admin_note: adminNote,
+    })
+    .eq("report_id", reportId)
+    .select()
+    .single();
+}
+
+export async function getListingReportCounts() {
+  return await supabase
+    .from("listing_reports")
+    .select("listing_id, status")
+    .eq("status", "pending");
+}
+
+export async function reactivateListing(listingId) {
+  return updateListing(listingId, { status: "active" });
+}
+
 // ─────────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────────
+ 
+/**
+Fetch all notifications for a user (newest first, max 50).
+Only selects the columns that actually exist in the table.
+*/
+export async function getNotificationsForUser(userId) {
+  return await supabase
+    .from("notifications")
+    .select("notification_id, type, channel, message, created_at")
+    .eq("user_id", userId)
+    .neq("status", "cleared")
+    .order("created_at", { ascending: false });
+}
+ 
+/**
+ Mark one notification as read.
+*/
+export async function markNotificationCleared(notificationId) {
+  return await supabase
+    .from("notifications")
+    .update({ status: "cleared" })
+    .eq("notification_id", notificationId);
+}
+ 
+/**
+Create a notification.
+Only inserts columns that exist: user_id, type, channel, status.
+type values:
+  "message" | "booking_request" | "booking_accepted" |
+  "booking_declined" | "booking_cancelled" | "booking_update"
+Errors are logged but never thrown — notifications are non-critical.
+*/
+export async function createNotification({ userId, type, channel = "in_app", message = null, status = "sent" }) {
+  return await supabase
+    .from("notifications")
+    .insert([{ user_id: userId, type, channel, message, status }]);
+}
 // PAYMENTS
 // ───────────────────────────────────────────────__
 
@@ -954,5 +1296,4 @@ export async function updatePaymentStatus(paymentId, status) {
     .update({ status })
     .eq("payment_id", paymentId)
     .select()
-    .single();
-}
+    .single(); }

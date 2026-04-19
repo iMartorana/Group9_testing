@@ -4,7 +4,7 @@ import { getConversationsForUser  } from "../../services/supabaseapi";
 Component to get conversations and messages for a user
 */
 
-export default function ConversationList({ dbUser, selectedConversation, onSelect }) {
+export default function ConversationList({ dbUser, selectedConversation, onSelect, initialConversationId }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -19,6 +19,11 @@ export default function ConversationList({ dbUser, selectedConversation, onSelec
         const { data, error } = await getConversationsForUser(dbUser.user_id);
         if (error) throw error;
         setConversations(data || []);
+
+        if (initialConversationId && data) {
+          const target = data.find(c => c.conversation_id === Number(initialConversationId));
+          if (target) onSelect(target);
+        }
       } catch (err) {
         console.error("Failed to fetch conversations:", err);
       } finally {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
+import { useSearchParams } from "react-router-dom";
 import { getUserByEmail } from "../services/supabaseapi";
 import ConversationList from "../components/Messages/ConversationList";
 import ConversationView from "../components/Messages/ConversationView";
@@ -8,6 +9,7 @@ import Navbar from "../components/Navbar";
 
 export default function Messages() {
   const { user } = useAuth0();
+  const [searchParams] = useSearchParams();
   const [dbUser, setDbUser] = useState(null);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [showNewModal, setShowNewModal] = useState(false);
@@ -42,6 +44,7 @@ export default function Messages() {
               dbUser={dbUser}
               selectedConversation={selectedConversation}
               onSelect={setSelectedConversation}
+              initialConversationId={searchParams.get("conversationId")}
             />
           </div>
 

@@ -45,7 +45,7 @@ export default function App() {
 
       //This wasn't working because the userServices only returns the data part. Needed to
       //update the checks accordingly
-      const {existingUserData, existingUserError} = await getUserByEmail(user.email);
+      const { data: existingUserData } = await getUserByEmail(user.email);
       const savedRole = localStorage.getItem("signup_role");
 
       console.log("signup_role from localStorage:", savedRole);

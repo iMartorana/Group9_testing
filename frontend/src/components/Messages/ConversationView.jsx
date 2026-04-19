@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../supabaseconfig";
-import { getMessagesForConversation, sendMessage } from "../../services/supabaseapi";
+import { getMessagesForConversation, sendMessage, createNotification } from "../../services/supabaseapi";
 /*
 Component for message view. Handles formatting of messages to send them
 */
@@ -95,6 +95,16 @@ export default function ConversationView({ dbUser, conversation }) {
         body,
       });
       if (error) throw error;
+
+      // Notify the other participant
+      const recipientId =
+        conversation.initiator_user_id === dbUser.user_id
+          ? conversation.recipient_user_id
+          : conversation.initiator_user_id;
+
+      if (recipientId && recipientId !== dbUser.user_id) {
+        await createNotification({ userId: recipientId, type: "message:" + conversation.conversation_id, message: "You have a new message from " + dbUser.first_name + " " + dbUser.last_name });
+      }
     } catch (err) {
       console.error("Failed to send message:", err);
       setMessages(prev => prev.filter(m => m.message_id !== optimisticId));
