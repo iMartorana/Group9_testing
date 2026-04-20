@@ -15,6 +15,8 @@ import {
   createConversation,
   sendMessage,
   createNotification,
+  createUserReport,
+  createListingReport,
 } from "../services/supabaseapi";
 /*
 Component to handle bookings. Very complicated
@@ -60,6 +62,11 @@ export default function Bookings() {
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  const [reportModal, setReportModal] = useState(null);   // { type: "user"|"listing", target, listingId?, listingOwnerId? }
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reporting, setReporting] = useState(false);
 
   // Load data on mount
   useEffect(() => {
@@ -118,6 +125,52 @@ export default function Bookings() {
       }
     }
   }, [searchParams, loading, dbUser, role, sentRequests, receivedRequests, studentBookings, clientSentRequests, clientBookings]);
+
+  // ── Report handlers ─────────────────────────────────────────────
+  const openReportModal = ({ type, target, listingId = null, listingOwnerId = null }) => {
+    setReportModal({ type, target, listingId, listingOwnerId });
+    setReportReason("");
+    setReportDetails("");
+  };
+
+  const closeReportModal = () => {
+    setReportModal(null);
+    setReportReason("");
+    setReportDetails("");
+  };
+
+  const submitReport = async () => {
+    if (!reportReason || !dbUser || !reportModal) return;
+    setReporting(true);
+    try {
+      if (reportModal.type === "listing") {
+        const { error } = await createListingReport({
+          listingId: reportModal.listingId,
+          reportedByUserId: dbUser.user_id,
+          listingOwnerUserId: reportModal.listingOwnerId,
+          reason: reportReason,
+          details: reportDetails.trim() || null,
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await createUserReport({
+          reportedUserId: reportModal.target.user_id,
+          reportedByUserId: dbUser.user_id,
+          reason: reportReason,
+          details: reportDetails.trim() || null,
+        });
+        if (error) throw error;
+      }
+      closeReportModal();
+      setSuccess("Report submitted. Our team will review it shortly.");
+    } catch (err) {
+      console.error("Failed to submit report:", err);
+      setError("Failed to submit report. Please try again.");
+    } finally {
+      setReporting(false);
+    }
+  };
+  // ────────────────────────────────────────────────────────────────
 
   const fetchData = async () => {
     try {
@@ -395,14 +448,30 @@ export default function Bookings() {
                         </p>
                       </div>
                       {req.status === "pending" && (
-                        <div className="card-footer">
+                        <div className="card-footer d-flex gap-2">
                           <button
-                            className="btn btn-outline-danger btn-sm w-100"
+                            className="btn btn-outline-danger btn-sm flex-fill"
                             disabled={actionLoading === req.request_id + "cancelled"}
                             onClick={() => handleAction(req.request_id, "cancelled")}
                           >
                             {actionLoading === req.request_id + "cancelled" ? "Cancelling..." : "Cancel Request"}
                           </button>
+                          {req.listings?.users?.user_id && (
+                            <button
+                              className="btn btn-outline-warning btn-sm"
+                              title="Report this listing or student"
+                              onClick={() =>
+                                openReportModal({
+                                  type: "listing",
+                                  target: req.listings,
+                                  listingId: req.listings.listing_id,
+                                  listingOwnerId: req.listings.student_id,
+                                })
+                              }
+                            >
+                              ⚑ Report
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -452,7 +521,7 @@ export default function Bookings() {
                         </p>
                       </div>
                       {req.status === "pending" && (
-                        <div className="card-footer d-flex gap-2">
+                        <div className="card-footer d-flex gap-2 flex-wrap">
                           <button
                             className="btn btn-success btn-sm flex-fill"
                             disabled={!!actionLoading}
@@ -467,6 +536,17 @@ export default function Bookings() {
                           >
                             {actionLoading === req.request_id + "declined" ? "Declining..." : "Decline"}
                           </button>
+                          {req.users?.user_id && (
+                            <button
+                              className="btn btn-outline-warning btn-sm"
+                              title="Report this client"
+                              onClick={() =>
+                                openReportModal({ type: "user", target: req.users })
+                              }
+                            >
+                              ⚑ Report
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -514,13 +594,42 @@ export default function Bookings() {
                             End: {formatDate(booking.end_at)}
                           </p>
                         </div>
-                        <div className="card-footer">
+                        <div className="card-footer d-flex gap-2">
                           <button
-                            className="btn btn-outline-danger btn-sm w-100"
+                            className="btn btn-outline-danger btn-sm flex-fill"
                             onClick={() => openCancelModal(booking)}
                           >
                             Cancel Booking
                           </button>
+                          {/* Client reports the student; student reports the client */}
+                          {role === "client" && booking.listings?.users && (
+                            <button
+                              className="btn btn-outline-warning btn-sm"
+                              title="Report this student"
+                              onClick={() =>
+                                openReportModal({
+                                  type: "user",
+                                  target: booking.listings.users,
+                                })
+                              }
+                            >
+                              ⚑ Report
+                            </button>
+                          )}
+                          {role === "student" && booking.customer_id !== dbUser?.user_id && booking.users && (
+                            <button
+                              className="btn btn-outline-warning btn-sm"
+                              title="Report this client"
+                              onClick={() =>
+                                openReportModal({
+                                  type: "user",
+                                  target: booking.users,
+                                })
+                              }
+                            >
+                              ⚑ Report
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -565,6 +674,81 @@ export default function Bookings() {
                     onClick={cancelBooking}
                   >
                     {cancelling ? "Cancelling..." : "Confirm Cancellation"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {reportModal && (
+          <div
+            className="modal d-block"
+            tabIndex="-1"
+            style={{ background: "rgba(0,0,0,0.5)" }}
+          >
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content border-0 rounded-4">
+                <div className="modal-header border-0 pb-0">
+                  <h5 className="modal-title text-danger">
+                    {reportModal.type === "listing" ? "Report Listing" : "Report User"}
+                  </h5>
+                  <button type="button" className="btn-close" onClick={closeReportModal} />
+                </div>
+
+                <div className="modal-body pt-2">
+                  <p className="text-muted small mb-3">
+                    {reportModal.type === "listing" ? (
+                      <>Reporting listing: <strong>{reportModal.target?.title}</strong></>
+                    ) : (
+                      <>Reporting user: <strong>{reportModal.target?.first_name} {reportModal.target?.last_name}</strong></>
+                    )}
+                  </p>
+
+                  <div className="mb-3">
+                    <label className="form-label fw-medium">Reason <span className="text-danger">*</span></label>
+                    <select
+                      className="form-select"
+                      value={reportReason}
+                      onChange={(e) => setReportReason(e.target.value)}
+                    >
+                      <option value="">Select a reason</option>
+                      <option value="scam_or_fraud">Scam or fraud</option>
+                      <option value="fake_profile">Fake profile</option>
+                      <option value="misleading_listing">Misleading listing</option>
+                      <option value="spam">Spam</option>
+                      <option value="harassment">Harassment</option>
+                      <option value="inappropriate_content">Inappropriate content</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  <div className="mb-0">
+                    <label className="form-label fw-medium">Details <span className="text-muted">(optional)</span></label>
+                    <textarea
+                      className="form-control"
+                      rows={4}
+                      placeholder="Provide any additional context to help our review team…"
+                      value={reportDetails}
+                      onChange={(e) => setReportDetails(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="modal-footer border-0 pt-0">
+                  <button
+                    className="btn btn-light"
+                    onClick={closeReportModal}
+                    disabled={reporting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    onClick={submitReport}
+                    disabled={!reportReason || reporting}
+                  >
+                    {reporting ? "Submitting…" : "Submit Report"}
                   </button>
                 </div>
               </div>
