@@ -15,6 +15,7 @@ import {
   createConversation,
   sendMessage,
   createNotification,
+  deactivateListing,
 } from "../services/supabaseapi";
 /*
 Component to handle bookings. Very complicated
@@ -58,6 +59,11 @@ export default function Bookings() {
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
 
+  // Modal that asks the student whether to keep the listing open for others
+  // or deactivate it when they accept a hire request.
+  const [acceptModal, setAcceptModal] = useState(null);
+  const [keepListingActive, setKeepListingActive] = useState(true);
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -72,7 +78,7 @@ export default function Bookings() {
     if (!loading && dbUser && role) {
       const bookingId = searchParams.get('bookingId');
       const tab = searchParams.get('tab');
-      
+
       if (bookingId) {
         // Find which tab contains this booking and navigate to it
         if (role === 'student') {
@@ -122,7 +128,7 @@ export default function Bookings() {
   const fetchData = async () => {
     try {
       /*
-      Get user for the following calls. 
+      Get user for the following calls.
       Namely looks for the role
       No in app error handling
       */
@@ -181,7 +187,23 @@ export default function Bookings() {
     setClientBookings(bookingsRes.data || []);
   };
 
-  const handleAction = async (requestId, status) => {
+  /*
+  Open the accept-request modal. The student picks whether to keep the
+  listing open for other clients or to deactivate it before we actually
+  process the accept.
+  */
+  const openAcceptModal = (req) => {
+    setAcceptModal(req);
+    setKeepListingActive(true);
+  };
+
+  /*
+  handleAction accepts or declines a hire request.
+  For "accepted", the optional `keepActive` arg controls whether we deactivate
+  the listing after confirming the booking. The Accept button routes through
+  the accept modal, which supplies this value; Decline skips the modal.
+  */
+  const handleAction = async (requestId, status, keepActive = true) => {
     setError("");
     setSuccess("");
     setActionLoading(requestId + status);
@@ -222,10 +244,33 @@ export default function Bookings() {
           });
           if (paymentError) throw paymentError;
 
+          // Student opted to deactivate the listing so no new hire
+          // requests can come in. Keep this AFTER the booking is created
+          // so a failure here doesn't block the accept.
+          let deactivationSucceeded = keepActive; // true if we weren't trying to deactivate
+          if (!keepActive && req.listing_id) {
+            const { error: deactivateError } = await deactivateListing(req.listing_id);
+            if (deactivateError) {
+              console.error("Failed to deactivate listing:", deactivateError);
+              deactivationSucceeded = false;
+            } else {
+              deactivationSucceeded = true;
+            }
+          }
+
           await createNotification({
             userId: req.customer_id,
             type: "booking_accepted:" + req.request_id,
           });
+
+          if (keepActive) {
+            setSuccess(`Request accepted. Your listing "${req.listings?.title}" will remain active.`);
+          } else if (deactivationSucceeded) {
+            setSuccess(`Request accepted. Your listing "${req.listings?.title}" has been deactivated.`);
+          } else {
+            // booking went through but the deactivation didn't — surface a warning instead of success
+            setError(`Request accepted, but the listing "${req.listings?.title}" could not be deactivated. You can deactivate it manually from the Jobs page.`);
+          }
         }
       }
 
@@ -247,6 +292,17 @@ export default function Bookings() {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  /*
+  Called when the student confirms their choice in the accept modal.
+  Routes through handleAction with the chosen `keepActive` flag.
+  */
+  const confirmAccept = async () => {
+    if (!acceptModal) return;
+    const req = acceptModal;
+    setAcceptModal(null);
+    await handleAction(req.request_id, "accepted", keepListingActive);
   };
 
   const openCancelModal = (booking) => {
@@ -376,38 +432,38 @@ export default function Bookings() {
                       </div>
                       <div className="card-body">
                         <p className="text-muted small mb-1">
-                          Student: {req.listings?.users?.first_name} {req.listings?.users?.last_name}
-                        </p>
-                        {(() => {
-                          try {
-                            const parsed = JSON.parse(req.note || "{}");
-                            if (parsed.agreed_price != null) return (
-                              <p className="text-muted small mb-1">Proposed Price: <strong>${parsed.agreed_price}</strong></p>
-                            );
-                          } catch { /* show listing rate */ }
-                          return <p className="text-muted small mb-1">Listed Rate: ${req.listings?.price_amount}</p>;
-                        })()}
-                        <p className="text-muted small mb-1">
-                          Start: {formatDate(req.requested_start_at)} &rarr; {formatDate(req.requested_end_at)}
-                        </p>
-                        <p className="text-muted small mb-0">
-                          Sent: {formatDate(req.created_at)}
-                        </p>
-                      </div>
-                      {req.status === "pending" && (
-                        <div className="card-footer">
-                          <button
-                            className="btn btn-outline-danger btn-sm w-100"
-                            disabled={actionLoading === req.request_id + "cancelled"}
-                            onClick={() => handleAction(req.request_id, "cancelled")}
-                          >
-                            {actionLoading === req.request_id + "cancelled" ? "Cancelling..." : "Cancel Request"}
-                          </button>
+                          To: {req.listings?.users?.first_name} {req.listings?.users?.last_name}
+                          </p>
+                          {(() => {
+                            try {
+                              const parsed = JSON.parse(req.note || "{}");
+                              if (parsed.agreed_price != null) return (
+                                <p className="text-muted small mb-1">Proposed Price: <strong>${parsed.agreed_price}</strong></p>
+                              );
+                            } catch { /* show nothing */ }
+                            return null;
+                          })()}
+                          <p className="text-muted small mb-1">
+                            Start: {formatDate(req.requested_start_at)} &rarr; {formatDate(req.requested_end_at)}
+                          </p>
+                          <p className="text-muted small mb-0">
+                            Sent: {formatDate(req.created_at)}
+                          </p>
                         </div>
-                      )}
+                        {req.status === "pending" && (
+                          <div className="card-footer">
+                            <button
+                              className="btn btn-outline-danger btn-sm w-100"
+                              disabled={!!actionLoading}
+                              onClick={() => handleAction(req.request_id, "cancelled")}
+                            >
+                              {actionLoading === req.request_id + "cancelled" ? "Cancelling..." : "Cancel Request"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </div>
@@ -456,7 +512,7 @@ export default function Bookings() {
                           <button
                             className="btn btn-success btn-sm flex-fill"
                             disabled={!!actionLoading}
-                            onClick={() => handleAction(req.request_id, "accepted")}
+                            onClick={() => openAcceptModal(req)}
                           >
                             {actionLoading === req.request_id + "accepted" ? "Accepting..." : "Accept"}
                           </button>
@@ -527,6 +583,63 @@ export default function Bookings() {
                   ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Accept Hire Request Modal */}
+        {acceptModal && (
+          <div className="modal fade show" style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}>
+            <div className="modal-dialog modal-sm modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Accept Request</h5>
+                  <button type="button" className="btn-close" onClick={() => setAcceptModal(null)} />
+                </div>
+                <div className="modal-body">
+                  <p className="text-muted small mb-3">
+                    Accepting: <strong>{acceptModal.listings?.title}</strong>
+                  </p>
+                  <div className="form-check mb-2">
+                    <input
+                      className="form-check-input"
+                      type="radio"
+                      name="acceptListingChoice"
+                      id="keepListingActive"
+                      checked={keepListingActive}
+                      onChange={() => setKeepListingActive(true)}
+                    />
+                    <label className="form-check-label" htmlFor="keepListingActive">
+                      Accept and keep listing active
+                    </label>
+                  </div>
+                  <div className="form-check">
+                    <input
+                      className="form-check-input"
+                      type="radio"
+                      name="acceptListingChoice"
+                      id="deactivateListing"
+                      checked={!keepListingActive}
+                      onChange={() => setKeepListingActive(false)}
+                    />
+                    <label className="form-check-label" htmlFor="deactivateListing">
+                      Accept and deactivate listing
+                    </label>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button className="btn btn-outline-secondary" onClick={() => setAcceptModal(null)}>
+                    Cancel
+                  </button>
+                  <button
+                    className="btn btn-success"
+                    disabled={!!actionLoading}
+                    onClick={confirmAccept}
+                  >
+                    {actionLoading ? "Accepting..." : "Confirm"}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
